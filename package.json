@@ -1,0 +1,23 @@
+{
+  "name": "slackbot-helper",
+  "version": "1.0.0",
+  "description": "a helper for slack",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mzhai/slackbot-helper.git"
+  },
+  "author": "May Zhai",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mzhai/slackbot-helper/issues"
+  },
+  "homepage": "https://github.com/mzhai/slackbot-helper#readme",
+  "dependencies": {
+    "@slack/client": "^3.5.4",
+    "botkit": "^0.2.2"
+  }
+}
