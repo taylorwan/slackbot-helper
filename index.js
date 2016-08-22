@@ -9,7 +9,7 @@ var os = require('os');
 var channelId;
 var channelInfo;
 var teamUsers;
-var channelUserNames;
+var channelUserNamesOriginal;
 
 var controller = Botkit.slackbot({
     debug: false
@@ -59,17 +59,17 @@ controller.on('rtm_open', function(bot) {
       }
       channelInfo = res.group;
       var memberIds = channelInfo.members;
-      channelUserNames = [];
-      // console.log(memberIds);
+      channelUserNamesOriginal = [];
 
       memberIds.forEach(function(memberId){
         teamUsers.forEach(function(teamUser) {
           if (teamUser.id === memberId) {
             if (teamUser.profile.real_name.length > 0) {
 
-              channelUserNames.push({
+              channelUserNamesOriginal.push({
                 name: teamUser.profile.real_name,
-                username: teamUser.name
+                username: teamUser.name,
+                id: teamUser.id
               });
             }
           }
@@ -122,10 +122,14 @@ controller.on('message_received', function(bot, message) {
 
 // reply to a direct mention - @bot hello
 controller.on('direct_mention',function(bot,message) {
-  console.log("direct mention");
+  // console.log("direct mention");
   // reply to _message_ by using the _bot_ object
   // bot.reply(message,'I heard you mention me!');
 
+  // console.log(JSON.stringify(message));
+  var requestUserId = message.user;
+  var requestUserName;
+  var requestUserNameString;
   var messageContent = message.text;
   var messageArray = messageContent.split(' ');
   var command;
@@ -134,41 +138,41 @@ controller.on('direct_mention',function(bot,message) {
     command = messageArray[0];
     link = messageArray[1];
   }
+  var channelUserNames = channelUserNamesOriginal.slice();
 
-  console.log("content:" + messageContent);
-  console.log("array:" + messageArray);
-  console.log("array length:" + messageArray.length);
-  console.log("command:" + command);
-  console.log("link:" + link);
+  // console.log("content:" + messageContent);
+  // console.log("array:" + messageArray);
+  // console.log("array length:" + messageArray.length);
+  // console.log("command:" + command);
+  // console.log("link:" + link);
   // var matchArray = jiraId.match(/PRF-[1-9]\d*$/i);
+
+  // console.log("requestUserId: " + requestUserId);
 
   if (command && link && command.toLowerCase() === 'review') {
     if (channelUserNames) {
-      console.log(channelUserNames);
+
+      //remove self
+      for (var i = 0; i < channelUserNames.length; i++) {
+        if (channelUserNames[i].id === requestUserId) {
+          requestUserName = channelUserNames[i].name;
+          channelUserNames.splice(i, 1);
+          break;
+        }
+      }
+
+      requestUserNameString = requestUserName ? requestUserName + '\'s' : 'this';
+
       var min = 0;
       var max = channelUserNames.length - 1;
       var randomnumber = Math.floor(Math.random() * (max - min + 1)) + min;
-
       var selectedUser = channelUserNames[randomnumber];
-      // console.log("num:" + randomnumber);
-      // console.log('user:' + selectedUser);
-      console.log("selectedUser.username:" + selectedUser.username);
-      bot.reply(message, 'Hey <@' + selectedUser.username + '> please review my code: ' + link.slice(1, -1));
+
+      bot.reply(message, 'Hey <@' + selectedUser.username + '> please review ' + requestUserNameString + ' code: ' + link.slice(1, -1));
     }
+  } else {
+    bot.reply(message, 'Try `@charmander review https://github.com/FiscalNote/FiscalNote-Service/pull/1171`');
   }
-
-
-
-    // bot.api.groups.list({
-    //     timestamp: message.ts,
-    //     channel: message.channel,
-    //     name: 'robot_face',
-    // }, function(err, res) {
-    //     if (err) {
-    //         bot.botkit.log('Failed to retrieve list of groups', err);
-    //     }
-    //     console.log(res);
-    // });
 
 });
 
