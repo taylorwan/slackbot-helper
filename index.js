@@ -219,38 +219,19 @@ controller.on('direct_mention',function(bot,message) {
 
   else if (command && channelUserNames && prev && command.toLowerCase() === 'no') {
 
-    //remove self and previously selected user
-    var removedCount = 0;
-    for (var i = 0; i < channelUserNames.length; i++) {
+    // remove previous user from active duty
+    remove(prev.selectedUser.id, channelUserNamesCurrent);
+    channelUserNames = channelUserNamesCurrent.splice();
 
-      // self
-      if (channelUserNames[i].id === prev.requestUserId) {
-        requestUserName = channelUserNames[i].name;
-        channelUserNames.splice(i, 1);
-        removedCount++;
-        i--;
-      }
-      
-      // previously selected user
-      else if (channelUserNames[i].id === prev.selectedUser.id) {
-        channelUserNames.splice(i, 1);
-        removedCount++;
-        i--;
-      }
+    // remove self
+    remove(prev.requestUserId, channelUserNames);
 
-      // break once both are removed
-      if (removedCount === 2) {
-        break;
-      }
-    }
+    bot.reply(message, 'I messed up. Sorry, ' + prev.selectedUser.name.split(" ")[0] + '! I\'ve temporarily relieved you from code review duties.');
 
     // select a new user
     var randomnumber = Math.floor(Math.random() * (channelUserNames.length - 1));
     var selectedUser = channelUserNames[randomnumber];
 
-
-    // bot responses
-    bot.reply(message, 'I messed up. Sorry, ' + prev.selectedUser.name.split(" ")[0] + '! I\'ve temporarily relieved you from code review duties.');
     bot.reply(message, 'Hey <@' + selectedUser.username + '> please review ' + prev.requestUserNameString + ' code: ' + stripLink(prev.link));
 
     // update
@@ -531,7 +512,7 @@ function stripLink(s) {
 }
 
 function printCurrent() {
-  var o = "Here's a list of all current users!";
+  var o = "Here's a list of all current users:";
   for (var i = 0; i < channelUserNamesCurrent.length; i++) {
     o += '\n- ' + channelUserNamesCurrent[i].username;
   }
@@ -539,7 +520,7 @@ function printCurrent() {
 }
 
 function printAll() {
-  var o = "Here's a list of all users in this channel!";
+  var o = "Here's a list of all users in this channel:";
   for (var i = 0; i < channelUserNamesAll.length; i++) {
     o += '\n- ' + channelUserNamesAll[i].username;
   }
