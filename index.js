@@ -10,6 +10,7 @@ var channelId;
 var channelInfo;
 var teamUsers;
 var channelUserNamesOriginal;
+var prev;
 
 var controller = Botkit.slackbot({
     debug: false
@@ -134,7 +135,7 @@ controller.on('direct_mention',function(bot,message) {
   var messageArray = messageContent.split(' ');
   var command;
   var link;
-  if (messageArray.length >= 2) {
+  if (messageArray.length >= 1) {
     command = messageArray[0];
     link = messageArray[1];
   }
@@ -169,8 +170,71 @@ controller.on('direct_mention',function(bot,message) {
       var selectedUser = channelUserNames[randomnumber];
 
       bot.reply(message, 'Hey <@' + selectedUser.username + '> please review ' + requestUserNameString + ' code: ' + link.slice(1, -1));
+
+      // update
+      prev = {};
+      prev.link = link;
+      prev.selectedUser = selectedUser;
+      prev.requestUserNameString = requestUserNameString;
+      prev.requestUserId = requestUserId;
     }
-  } else {
+  }
+
+  /* Choose someone else */
+
+  else if (command && prev && channelUserNames && command.toLowerCase() === 'no') {
+
+    //remove self and previously selected user
+    var removedCount = 0;
+    for (var i = 0; i < channelUserNames.length; i++) {
+
+      // self
+      if (channelUserNames[i].id === prev.requestUserId) {
+        requestUserName = channelUserNames[i].name;
+        channelUserNames.splice(i, 1);
+        removedCount++;
+        i--;
+      }
+      
+      // previously selected user
+      else if (channelUserNames[i].id === prev.selectedUser.id) {
+        channelUserNames.splice(i, 1);
+        removedCount++;
+        i--;
+      }
+
+      // break once both are removed
+      if (removedCount === 2) {
+        break;
+      }
+    }
+
+    // select a new user
+    var randomnumber = Math.floor(Math.random() * (channelUserNames.length - 1));
+    var selectedUser = channelUserNames[randomnumber];
+
+    // bot responses
+    bot.reply(message, 'I messed up. Sorry, ' + prev.selectedUser.name.split(" ")[0] + '!');
+    bot.reply(message, 'Hey <@' + selectedUser.username + '> please review ' + prev.requestUserNameString + ' code: ' + prev.link.slice(1, -1));
+
+    // put back the previously selected user
+    channelUserNames.push(prev.selectedUser);
+
+    // update
+    prev.selectedUser = selectedUser;
+
+  }
+
+  /* syntax error! print error msg (with most recently used link, if available) */
+
+  else if (prev) {
+    bot.reply(message, 'Hmm. I didn\'t get that. Try `@charmander review ' + prev.link.slice(1, -1) + '`');
+  }
+  else if (command && command.toLowerCase() === 'no') {
+    bot.reply(message, 'I didn\'t do anything yet!');
+    bot.reply(message, 'Try `@charmander review https://github.com/FiscalNote/FiscalNote-Service/pull/1171`');
+  }
+  else {
     bot.reply(message, 'Try `@charmander review https://github.com/FiscalNote/FiscalNote-Service/pull/1171`');
   }
 
