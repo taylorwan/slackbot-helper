@@ -158,7 +158,7 @@ controller.on('direct_mention',function(bot,message) {
 
   if (command && command.toLowerCase() === 'help') {
     var o  = "Here are all the things I can do:\n";
-        o += "_Review code_\t\t`@charmander review <link to PR>`\n";
+        o += "_Review code_\t\t`@charmander review <link>`\n";
         o += "_Add an user_\t\t`@charmander add @<user>`\n";
         o += "_Remove an user_\t\t`@charmander remove @<user>`\n";
         o += "_Retract last assignment_\t\t`@charmander no`\n";
@@ -244,19 +244,16 @@ controller.on('direct_mention',function(bot,message) {
   else if (command && link && command.toLowerCase() === 'remove') {
 
     var name = strip(link);
-    var user = find(name, channelUserNamesCurrent);
+    var user = find(name, channelUserNamesCurrent) || findByUsername(name, channelUserNamesCurrent);
 
-    if (user === -1) {
-      user = findByUsername(name, channelUserNamesCurrent);
-    }
-
-    if (user === -1) {
-      bot.reply(message, 'Hmm...I couldn\'t find a human by that name. Try `@charmander ls` to view all active reviewers');
+    if (user === 0) {
+      bot.reply(message, 'Hmm...I couldn\'t find a human by that name.\nTry `@charmander ls` to view all active reviewers');
       return;
     }
 
+    // remove
     remove(user.id, channelUserNamesCurrent);
-    bot.reply(message, 'Got it! I will not ask ' + user.name.split(" ")[0] + ' to review code\nYou can re-add any user by saying `@charmander add @<user>`');
+    bot.reply(message, 'Got it! I will not ask ' + user.name.split(" ")[0] + ' to review code.\nYou can re-add any user by saying `@charmander add @<user>`');
   }
 
   /* add an user to active duty */
@@ -264,18 +261,20 @@ controller.on('direct_mention',function(bot,message) {
   else if (command && link &&  command.toLowerCase() === 'add') {
     
     var name = strip(link);
-    var user = find(name, channelUserNamesAll);
+    var user = find(name, channelUserNamesAll) || findByUsername(name, channelUserNamesAll);
 
-    if (user === -1) {
-      bot.reply(message, 'Hmm...I couldn\'t find anyone in this channel by that name. Try `@charmander ls` to view all users in this channel');
+    if (user === 0) {
+      bot.reply(message, 'Hmm...I couldn\'t find a human by that name.\nTry `@charmander ls` to view all users in this channel');
       return;
     }
 
-    if (find(name, channelUserNamesCurrent) === -1) {
-      bot.reply(message, 'Hmm...looks like ' + user.name.split(' ')[0]+ ' is already active!. Try `@charmander ls` to view all active users');
+    if (find(name, channelUserNamesCurrent) !== 0 ||
+        findByUsername(name, channelUserNamesCurrent) !== 0 ) {
+      bot.reply(message, 'Hmm...looks like ' + user.name.split(' ')[0]+ ' is already active.\nYou can say `@charmander ls` to view all active users');
       return;
     }
 
+    // add
     channelUserNamesCurrent.push(user);
     bot.reply(message, 'Got it! My magic box will now include ' + user.name.split(" ")[0] + ' when it picks someone to review code');
   }
@@ -283,7 +282,7 @@ controller.on('direct_mention',function(bot,message) {
 
   /** error!
     * - print error msg (with most recently used link, if available)
-    * - 
+    * - if user tries to retract with no prev entry, warning + generic error 
     * - generic error message
     */
 
@@ -292,10 +291,10 @@ controller.on('direct_mention',function(bot,message) {
   }
   else if (command && command.toLowerCase() === 'no') {
     bot.reply(message, 'I didn\'t do anything yet!');
-    bot.reply(message, 'Try `@charmander review https://github.com/FiscalNote/FiscalNote-Service/pull/1171`');
+    bot.reply(message, 'Try `@charmander review <link>`');
   }
   else {
-    bot.reply(message, 'Try `@charmander review https://github.com/FiscalNote/FiscalNote-Service/pull/1171`');
+    bot.reply(message, 'Try `@charmander review <link>`');
   }
 
 });
@@ -489,7 +488,7 @@ function find(s, l) {
       return l[i];
     }
   }
-  return -1;
+  return 0;
 }
 
 // find a user by username
@@ -499,7 +498,7 @@ function findByUsername(s, l) {
       return l[i];
     }
   }
-  return -1;
+  return 0;
 }
 
 function strip(s) {
