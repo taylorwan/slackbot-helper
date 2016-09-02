@@ -137,10 +137,11 @@ controller.on('direct_mention',function(bot,message) {
   var messageContent = message.text;
   var messageArray = messageContent.split(' ');
   var command;
-  var link;
+  var links = [];
   if (messageArray.length >= 1) {
     command = messageArray[0];
-    link = messageArray[1];
+    for (var i = 1; i < messageArray.length; i++)
+      links.push(messageArray[i]);
   }
   var channelUserNames = channelUserNamesCurrent.slice();
 
@@ -148,7 +149,7 @@ controller.on('direct_mention',function(bot,message) {
   // console.log("array:" + messageArray);
   // console.log("array length:" + messageArray.length);
   // console.log("command:" + command);
-  // console.log("link:" + link);
+  // console.log("links:" + links);
   // var matchArray = jiraId.match(/PRF-[1-9]\d*$/i);
 
   // console.log("requestUserId: " + requestUserId);
@@ -158,7 +159,7 @@ controller.on('direct_mention',function(bot,message) {
 
   if (command && command.toLowerCase() === 'help') {
     var o  = "Here are all the things I can do:\n";
-        o += "_Review code_\t\t`@charmander review <link to PR>`\n";
+        o += "_Review code_\t\t`@charmander review <link>`\n";
         o += "_Add an user_\t\t`@charmander add @<user>`\n";
         o += "_Remove an user_\t\t`@charmander remove @<user>`\n";
         o += "_Retract last assignment_\t\t`@charmander no`\n";
@@ -179,7 +180,7 @@ controller.on('direct_mention',function(bot,message) {
   /* print all current users */
 
   else if (command && command.toLowerCase() === 'ls') {
-    if (link && link === '-a') {
+    if (links && links[0] === '-a') {
       bot.reply(message, printAll());
     }
     else {
@@ -189,7 +190,7 @@ controller.on('direct_mention',function(bot,message) {
 
   /* pick someone to review code */
 
-  else if (command && link && channelUserNames && command.toLowerCase() === 'review') {
+  else if (command && links.length > 0 && channelUserNames && command.toLowerCase() === 'review') {
 
       //remove self
       for (var i = 0; i < channelUserNames.length; i++) {
@@ -205,11 +206,11 @@ controller.on('direct_mention',function(bot,message) {
       var randomnumber = Math.floor(Math.random() * (channelUserNames.length - 1));
       var selectedUser = channelUserNames[randomnumber];
 
-      bot.reply(message, 'Hey <@' + selectedUser.username + '> please review ' + requestUserNameString + ' code: ' + stripLink(link));
+      bot.reply(message, 'Hey <@' + selectedUser.username + '> please review ' + requestUserNameString + ' code: ' + concatLinks(links));
 
       // update
       prev = {};
-      prev.link = link;
+      prev.links = links;
       prev.selectedUser = selectedUser;
       prev.requestUserNameString = requestUserNameString;
       prev.requestUserId = requestUserId;
@@ -232,7 +233,9 @@ controller.on('direct_mention',function(bot,message) {
     var randomnumber = Math.floor(Math.random() * (channelUserNames.length - 1));
     var selectedUser = channelUserNames[randomnumber];
 
-    bot.reply(message, 'Hey <@' + selectedUser.username + '> please review ' + prev.requestUserNameString + ' code: ' + stripLink(prev.link));
+    // links
+
+    bot.reply(message, 'Hey <@' + selectedUser.username + '> please review ' + prev.requestUserNameString + ' code: ' + concatLinks(prev.links));
 
     // update
     prev.selectedUser = selectedUser;
@@ -241,41 +244,40 @@ controller.on('direct_mention',function(bot,message) {
 
   /* remove an user from active duty */
 
-  else if (command && link && command.toLowerCase() === 'remove') {
+  else if (command && links.length > 0 && command.toLowerCase() === 'remove') {
 
-    var name = strip(link);
-    var user = find(name, channelUserNamesCurrent);
+    var name = strip(links[0]);
+    var user = find(name, channelUserNamesCurrent) || findByUsername(name, channelUserNamesCurrent);
 
-    if (user === -1) {
-      user = findByUsername(name, channelUserNamesCurrent);
-    }
-
-    if (user === -1) {
-      bot.reply(message, 'Hmm...I couldn\'t find a human by that name. Try `@charmander ls` to view all active reviewers');
+    if (user === 0) {
+      bot.reply(message, 'Hmm...I couldn\'t find a human by that name.\nTry `@charmander ls` to view all active reviewers');
       return;
     }
 
+    // remove
     remove(user.id, channelUserNamesCurrent);
-    bot.reply(message, 'Got it! I will not ask ' + user.name.split(" ")[0] + ' to review code\nYou can re-add any user by saying `@charmander add @<user>`');
+    bot.reply(message, 'Got it! I will not ask ' + user.name.split(" ")[0] + ' to review code.\nYou can re-add any user by saying `@charmander add @<user>`');
   }
 
   /* add an user to active duty */
 
-  else if (command && link &&  command.toLowerCase() === 'add') {
+  else if (command && links.length > 0 &&  command.toLowerCase() === 'add') {
     
-    var name = strip(link);
-    var user = find(name, channelUserNamesAll);
+    var name = strip(links[0]);
+    var user = find(name, channelUserNamesAll) || findByUsername(name, channelUserNamesAll);
 
-    if (user === -1) {
-      bot.reply(message, 'Hmm...I couldn\'t find anyone in this channel by that name. Try `@charmander ls` to view all users in this channel');
+    if (user === 0) {
+      bot.reply(message, 'Hmm...I couldn\'t find a human by that name.\nTry `@charmander ls` to view all users in this channel');
       return;
     }
 
-    if (find(name, channelUserNamesCurrent) === -1) {
-      bot.reply(message, 'Hmm...looks like ' + user.name.split(' ')[0]+ ' is already active!. Try `@charmander ls` to view all active users');
+    if (find(name, channelUserNamesCurrent) !== 0 ||
+        findByUsername(name, channelUserNamesCurrent) !== 0 ) {
+      bot.reply(message, 'Hmm...looks like ' + user.name.split(' ')[0]+ ' is already active.\nYou can say `@charmander ls` to view all active users');
       return;
     }
 
+    // add
     channelUserNamesCurrent.push(user);
     bot.reply(message, 'Got it! My magic box will now include ' + user.name.split(" ")[0] + ' when it picks someone to review code');
   }
@@ -283,7 +285,7 @@ controller.on('direct_mention',function(bot,message) {
 
   /** error!
     * - print error msg (with most recently used link, if available)
-    * - 
+    * - if user tries to retract with no prev entry, warning + generic error 
     * - generic error message
     */
 
@@ -292,10 +294,10 @@ controller.on('direct_mention',function(bot,message) {
   }
   else if (command && command.toLowerCase() === 'no') {
     bot.reply(message, 'I didn\'t do anything yet!');
-    bot.reply(message, 'Try `@charmander review https://github.com/FiscalNote/FiscalNote-Service/pull/1171`');
+    bot.reply(message, 'Try `@charmander review <link>`');
   }
   else {
-    bot.reply(message, 'Try `@charmander review https://github.com/FiscalNote/FiscalNote-Service/pull/1171`');
+    bot.reply(message, 'Try `@charmander review <link>`');
   }
 
 });
@@ -308,110 +310,110 @@ controller.on('direct_message',function(bot,message) {
 
 });
 
-controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {
+// controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {
 
-    bot.api.reactions.add({
-        timestamp: message.ts,
-        channel: message.channel,
-        name: 'robot_face',
-    }, function(err, res) {
-        if (err) {
-            bot.botkit.log('Failed to add emoji reaction :(', err);
-        }
-    });
-
-
-    controller.storage.users.get(message.user, function(err, user) {
-        if (user && user.name) {
-            bot.reply(message, 'Hello ' + user.name + '!!');
-        } else {
-            bot.reply(message, 'Hello.');
-        }
-    });
-});
-
-controller.hears(['call me (.*)', 'my name is (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
-    var name = message.match[1];
-    controller.storage.users.get(message.user, function(err, user) {
-        if (!user) {
-            user = {
-                id: message.user,
-            };
-        }
-        user.name = name;
-        controller.storage.users.save(user, function(err, id) {
-            bot.reply(message, 'Got it. I will call you ' + user.name + ' from now on.');
-        });
-    });
-});
-
-controller.hears(['what is my name', 'who am i'], 'direct_message,direct_mention,mention', function(bot, message) {
-
-    controller.storage.users.get(message.user, function(err, user) {
-        if (user && user.name) {
-            bot.reply(message, 'Your name is ' + user.name);
-        } else {
-            bot.startConversation(message, function(err, convo) {
-                if (!err) {
-                    convo.say('I do not know your name yet!');
-                    convo.ask('What should I call you?', function(response, convo) {
-                        convo.ask('You want me to call you `' + response.text + '`?', [
-                            {
-                                pattern: 'yes',
-                                callback: function(response, convo) {
-                                    // since no further messages are queued after this,
-                                    // the conversation will end naturally with status == 'completed'
-                                    convo.next();
-                                }
-                            },
-                            {
-                                pattern: 'no',
-                                callback: function(response, convo) {
-                                    // stop the conversation. this will cause it to end with status == 'stopped'
-                                    convo.stop();
-                                }
-                            },
-                            {
-                                default: true,
-                                callback: function(response, convo) {
-                                    convo.repeat();
-                                    convo.next();
-                                }
-                            }
-                        ]);
-
-                        convo.next();
-
-                    }, {'key': 'nickname'}); // store the results in a field called nickname
-
-                    convo.on('end', function(convo) {
-                        if (convo.status == 'completed') {
-                            bot.reply(message, 'OK! I will update my dossier...');
-
-                            controller.storage.users.get(message.user, function(err, user) {
-                                if (!user) {
-                                    user = {
-                                        id: message.user,
-                                    };
-                                }
-                                user.name = convo.extractResponse('nickname');
-                                controller.storage.users.save(user, function(err, id) {
-                                    bot.reply(message, 'Got it. I will call you ' + user.name + ' from now on.');
-                                });
-                            });
+//     bot.api.reactions.add({
+//         timestamp: message.ts,
+//         channel: message.channel,
+//         name: 'robot_face',
+//     }, function(err, res) {
+//         if (err) {
+//             bot.botkit.log('Failed to add emoji reaction :(', err);
+//         }
+//     });
 
 
+//     controller.storage.users.get(message.user, function(err, user) {
+//         if (user && user.name) {
+//             bot.reply(message, 'Hello ' + user.name + '!!');
+//         } else {
+//             bot.reply(message, 'Hello.');
+//         }
+//     });
+// });
 
-                        } else {
-                            // this happens if the conversation ended prematurely for some reason
-                            bot.reply(message, 'OK, nevermind!');
-                        }
-                    });
-                }
-            });
-        }
-    });
-});
+// controller.hears(['call me (.*)', 'my name is (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
+//     var name = message.match[1];
+//     controller.storage.users.get(message.user, function(err, user) {
+//         if (!user) {
+//             user = {
+//                 id: message.user,
+//             };
+//         }
+//         user.name = name;
+//         controller.storage.users.save(user, function(err, id) {
+//             bot.reply(message, 'Got it. I will call you ' + user.name + ' from now on.');
+//         });
+//     });
+// });
+
+// controller.hears(['what is my name', 'who am i'], 'direct_message,direct_mention,mention', function(bot, message) {
+
+//     controller.storage.users.get(message.user, function(err, user) {
+//         if (user && user.name) {
+//             bot.reply(message, 'Your name is ' + user.name);
+//         } else {
+//             bot.startConversation(message, function(err, convo) {
+//                 if (!err) {
+//                     convo.say('I do not know your name yet!');
+//                     convo.ask('What should I call you?', function(response, convo) {
+//                         convo.ask('You want me to call you `' + response.text + '`?', [
+//                             {
+//                                 pattern: 'yes',
+//                                 callback: function(response, convo) {
+//                                     // since no further messages are queued after this,
+//                                     // the conversation will end naturally with status == 'completed'
+//                                     convo.next();
+//                                 }
+//                             },
+//                             {
+//                                 pattern: 'no',
+//                                 callback: function(response, convo) {
+//                                     // stop the conversation. this will cause it to end with status == 'stopped'
+//                                     convo.stop();
+//                                 }
+//                             },
+//                             {
+//                                 default: true,
+//                                 callback: function(response, convo) {
+//                                     convo.repeat();
+//                                     convo.next();
+//                                 }
+//                             }
+//                         ]);
+
+//                         convo.next();
+
+//                     }, {'key': 'nickname'}); // store the results in a field called nickname
+
+//                     convo.on('end', function(convo) {
+//                         if (convo.status == 'completed') {
+//                             bot.reply(message, 'OK! I will update my dossier...');
+
+//                             controller.storage.users.get(message.user, function(err, user) {
+//                                 if (!user) {
+//                                     user = {
+//                                         id: message.user,
+//                                     };
+//                                 }
+//                                 user.name = convo.extractResponse('nickname');
+//                                 controller.storage.users.save(user, function(err, id) {
+//                                     bot.reply(message, 'Got it. I will call you ' + user.name + ' from now on.');
+//                                 });
+//                             });
+
+
+
+//                         } else {
+//                             // this happens if the conversation ended prematurely for some reason
+//                             bot.reply(message, 'OK, nevermind!');
+//                         }
+//                     });
+//                 }
+//             });
+//         }
+//     });
+// });
 
 
 controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function(bot, message) {
@@ -442,35 +444,35 @@ controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function
 });
 
 
-controller.hears(['uptime', 'identify yourself', 'who are you', 'what is your name'],
-    'direct_message,direct_mention,mention', function(bot, message) {
+// controller.hears(['uptime', 'identify yourself', 'who are you', 'what is your name'],
+//     'direct_message,direct_mention,mention', function(bot, message) {
 
-        var hostname = os.hostname();
-        var uptime = formatUptime(process.uptime());
+//         var hostname = os.hostname();
+//         var uptime = formatUptime(process.uptime());
 
-        bot.reply(message,
-            ':robot_face: I am a bot named <@' + bot.identity.name +
-             '>. I have been running for ' + uptime + ' on ' + hostname + '.');
+//         bot.reply(message,
+//             ':robot_face: I am a bot named <@' + bot.identity.name +
+//              '>. I have been running for ' + uptime + ' on ' + hostname + '.');
 
-    });
+//     });
 
-function formatUptime(uptime) {
-    var unit = 'second';
-    if (uptime > 60) {
-        uptime = uptime / 60;
-        unit = 'minute';
-    }
-    if (uptime > 60) {
-        uptime = uptime / 60;
-        unit = 'hour';
-    }
-    if (uptime != 1) {
-        unit = unit + 's';
-    }
+// function formatUptime(uptime) {
+//     var unit = 'second';
+//     if (uptime > 60) {
+//         uptime = uptime / 60;
+//         unit = 'minute';
+//     }
+//     if (uptime > 60) {
+//         uptime = uptime / 60;
+//         unit = 'hour';
+//     }
+//     if (uptime != 1) {
+//         unit = unit + 's';
+//     }
 
-    uptime = uptime + ' ' + unit;
-    return uptime;
-}
+//     uptime = uptime + ' ' + unit;
+//     return uptime;
+// }
 
 // remove from list by id
 function remove(s, l) {
@@ -489,7 +491,7 @@ function find(s, l) {
       return l[i];
     }
   }
-  return -1;
+  return 0;
 }
 
 // find a user by username
@@ -499,7 +501,7 @@ function findByUsername(s, l) {
       return l[i];
     }
   }
-  return -1;
+  return 0;
 }
 
 function strip(s) {
@@ -523,6 +525,14 @@ function printAll() {
   var o = "Here's a list of all users in this channel:";
   for (var i = 0; i < channelUserNamesAll.length; i++) {
     o += '\n- ' + channelUserNamesAll[i].username;
+  }
+  return o;
+}
+
+function concatLinks(l) {
+  var o = "";
+  for (var i = 0; i < l.length; i++) {
+    o += stripLink(l[i]) + " "
   }
   return o;
 }
