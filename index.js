@@ -510,7 +510,7 @@ function strip(s) {
 
 // strip an actual link
 function stripLink(s) {
-  return s.replace('<', '').replace('>', '').replace('`', '');
+  return s.replace(/</g, '').replace(/>/g, '').replace(/`/g, '');
 }
 
 function printCurrent() {
