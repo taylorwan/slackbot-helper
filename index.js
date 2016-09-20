@@ -11,6 +11,7 @@ var channelInfo;
 var teamUsers;
 var channelUserNamesAll;
 var channelUserNamesCurrent;
+var channelUserPRCount;
 var prev;
 
 var controller = Botkit.slackbot({
@@ -73,6 +74,7 @@ controller.on('rtm_open', function(bot) {
                 username: teamUser.name,
                 id: teamUser.id
               });
+              channelUserPRCount[teamUser.profile.id] = 0;
             }
           }
         });
@@ -200,10 +202,36 @@ controller.on('direct_mention',function(bot,message) {
           break;
         }
       }
+      //determine users that have had the fewest review requests so far
+      var low=100,
+          high=0,
+          user,
+          prCount;
+      for(var i = 0; i < channelUserNames.length; i++) {
+          user = channelUserNames[i];
+          prCount = channelUserPRCount[user.id];
+          if(prCount < low) {
+              low = prCount;
+          }
+          if(prCount > high) {
+              high = prCount;
+          }
+      }
+      if(low != high) {
+          for(var i = 0; i < channelUserNames.length; i++) {
+              user = channelUserNames[i];
+              prCount = channelUserPRCount[user.id];
+              if(prCount > low) {
+                  //remove from the list
+                  channelUserNames.splice(i, 1);
+              }
+          }
+      }
+
 
       requestUserNameString = requestUserName ? requestUserName + '\'s' : 'this';
 
-      var randomnumber = Math.floor(Math.random() * (channelUserNames.length - 1));
+      var randomnumber = Math.floor(Math.random() * (channelUserNames.length));
       var selectedUser = channelUserNames[randomnumber];
 
       bot.reply(message, 'Hey <@' + selectedUser.username + '> please review ' + requestUserNameString + ' code: ' + concatLinks(links));
