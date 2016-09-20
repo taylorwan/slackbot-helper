@@ -30,7 +30,12 @@ controller.on('rtm_open', function(bot) {
       bot.botkit.log('Failed to retrieve list of users in team.', err);
       return;
     }
+    channelUserPRCount = {};
     teamUsers = res.members;
+    teamUsers.forEach(function(teamUser) {
+      channelUserPRCount[teamUser.id] = 0;
+    });
+
   });
 
   //gets channel id
@@ -74,7 +79,7 @@ controller.on('rtm_open', function(bot) {
                 username: teamUser.name,
                 id: teamUser.id
               });
-              channelUserPRCount[teamUser.profile.id] = 0;
+
             }
           }
         });
@@ -234,7 +239,8 @@ controller.on('direct_mention',function(bot,message) {
       var randomnumber = Math.floor(Math.random() * (channelUserNames.length));
       var selectedUser = channelUserNames[randomnumber];
 
-      bot.reply(message, 'Hey <@' + selectedUser.username + '> please review ' + requestUserNameString + ' code: ' + concatLinks(links));
+      bot.reply(message, 'Hey <@' + selectedUser.username + '('+channelUserPRCount[selectedUser.id]+')> please review ' + requestUserNameString + ' code: ' + concatLinks(links));
+      channelUserPRCount[selectedUser.id]++;
 
       // update
       prev = {};
