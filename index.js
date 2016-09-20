@@ -165,15 +165,7 @@ controller.on('direct_mention',function(bot,message) {
   /* list all possible options */
 
   if (command && command.toLowerCase() === 'help') {
-    var o  = "Here are all the things I can do:\n";
-        o += "_Review code_\t\t`@charmander review <link>`\n";
-        o += "_Add an user_\t\t`@charmander add @<user>`\n";
-        o += "_Remove an user_\t\t`@charmander remove @<user>`\n";
-        o += "_Retract last assignment_\t\t`@charmander no`\n";
-        o += "_View all active reviewers_\t\t`@charmander ls`\n";
-        o += "_View all users in this channel_\t\t`@charmander ls -a`\n";
-        o += "_Set all users to active_\t\t`@charmander reset`";
-    bot.reply(message, o);
+    bot.reply(message, helpMessage());
   }
 
   /* restore original users */
@@ -339,8 +331,20 @@ controller.on('direct_mention',function(bot,message) {
 // reply to a direct message
 controller.on('direct_message',function(bot,message) {
   console.log("direct message:" + JSON.stringify(message));
+  
+  console.log(message.text);
+  if (!message.text) {
+    bot.reply(message,'Hmm..I didn\'t catch that');
+    return;
+  }
   // reply to _message_ by using the _bot_ object
-  bot.reply(message,'Hi! You are talking directly to me');
+  if (message.text.indexOf('help') > -1 || message.text.indexOf('can you') > -1) {
+    bot.reply(message, helpMessage());
+  } else if (message.text.indexOf('hi') > -1 || message.text.indexOf('hello') > -1 || message.text.indexOf('hey') > -1) {
+    bot.reply(message,'Howdy!');
+  } else {
+    bot.reply(message,'Hi there!');
+  }
 
 });
 
@@ -510,8 +514,11 @@ controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function
 
 // remove from list by id
 function remove(s, l) {
+  console.log("removing", s, "from", l);
   for (var i = 0; i < l.length; i++) {
     if (l[i].id == s) {
+      console.log("found at index", i)
+      console.log("deleting", l[i].id)
       l.splice(i, 1);
       break;
     }
@@ -568,5 +575,16 @@ function concatLinks(l) {
   for (var i = 0; i < l.length; i++) {
     o += stripLink(l[i]) + " "
   }
+  return o;
+}
+
+function helpMessage() {
+  var o  = "Here are all the things I can do:\n";
+    o += "_Review code_\n`@charmander review <link>`\n";
+    o += "_Add an user_\n`@charmander add <username>`\n";
+    o += "_Remove an user_\n`@charmander remove <username>`\n";
+    o += "_View all active reviewers_\n`@charmander ls`\n";
+    o += "_View all users in this channel_\n`@charmander ls -a`\n";
+    o += "_Set all users to active_\n`@charmander reset`";
   return o;
 }
