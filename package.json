@@ -18,6 +18,7 @@
   "homepage": "https://github.com/mzhai/slackbot-helper#readme",
   "dependencies": {
     "@slack/client": "^3.5.4",
-    "botkit": "^0.2.2"
+    "botkit": "^0.2.2",
+    "moment": "^2.15.1"
   }
 }
