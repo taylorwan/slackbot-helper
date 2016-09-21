@@ -152,28 +152,10 @@ controller.on('direct_mention',function(bot,message) {
   }
   var channelUserNames = channelUserNamesCurrent.slice();
 
-  // console.log("content:" + messageContent);
-  // console.log("array:" + messageArray);
-  // console.log("array length:" + messageArray.length);
-  // console.log("command:" + command);
-  // console.log("links:" + links);
-  // var matchArray = jiraId.match(/PRF-[1-9]\d*$/i);
-
-  // console.log("requestUserId: " + requestUserId);
-
-
   /* list all possible options */
 
   if (command && command.toLowerCase() === 'help') {
-    var o  = "Here are all the things I can do:\n";
-        o += "_Review code_\t\t`@charmander review <link>`\n";
-        o += "_Add an user_\t\t`@charmander add @<user>`\n";
-        o += "_Remove an user_\t\t`@charmander remove @<user>`\n";
-        o += "_Retract last assignment_\t\t`@charmander no`\n";
-        o += "_View all active reviewers_\t\t`@charmander ls`\n";
-        o += "_View all users in this channel_\t\t`@charmander ls -a`\n";
-        o += "_Set all users to active_\t\t`@charmander reset`";
-    bot.reply(message, o);
+    bot.reply(message, helpMessage());
   }
 
   /* restore original users */
@@ -239,8 +221,8 @@ controller.on('direct_mention',function(bot,message) {
       var randomnumber = Math.floor(Math.random() * (channelUserNames.length));
       var selectedUser = channelUserNames[randomnumber];
 
-      bot.reply(message, 'Hey <@' + selectedUser.username + '('+channelUserPRCount[selectedUser.id]+')> please review ' + requestUserNameString + ' code: ' + concatLinks(links));
       channelUserPRCount[selectedUser.id]++;
+      bot.reply(message, 'Hey <@' + selectedUser.username + '> ('+channelUserPRCount[selectedUser.id]+') please review ' + requestUserNameString + ' code: ' + concatLinks(links));
 
       // update
       prev = {};
@@ -261,6 +243,7 @@ controller.on('direct_mention',function(bot,message) {
     // remove self
     remove(prev.requestUserId, channelUserNames);
 
+    channelUserPRCount[prev.selectedUser.id]--;
     bot.reply(message, 'I messed up. Sorry, ' + prev.selectedUser.name.split(" ")[0] + '! I\'ve temporarily relieved you from code review duties.');
 
     // select a new user
@@ -268,8 +251,8 @@ controller.on('direct_mention',function(bot,message) {
     var selectedUser = channelUserNames[randomnumber];
 
     // links
-
-    bot.reply(message, 'Hey <@' + selectedUser.username + '> please review ' + prev.requestUserNameString + ' code: ' + concatLinks(prev.links));
+    channelUserPRCount[selectedUser.id]++;
+    bot.reply(message, 'Hey <@' + selectedUser.username + '> ('+channelUserPRCount[selectedUser.id]+') please review ' + prev.requestUserNameString + ' code: ' + concatLinks(prev.links));
 
     // update
     prev.selectedUser = selectedUser;
@@ -339,9 +322,25 @@ controller.on('direct_mention',function(bot,message) {
 // reply to a direct message
 controller.on('direct_message',function(bot,message) {
   console.log("direct message:" + JSON.stringify(message));
+  
+  console.log(message.text);
+  if (!message.text) {
+    bot.reply(message,'Hmm..I didn\'t catch that');
+    return;
+  }
   // reply to _message_ by using the _bot_ object
-  bot.reply(message,'Hi! You are talking directly to me');
-
+  if (message.text.indexOf('help') > -1 || message.text.indexOf('can you') > -1) {
+    bot.reply(message, helpMessage());
+  } else if (message.text.indexOf('hi') > -1 || message.text.indexOf('hello') > -1 || message.text.indexOf('hey') > -1) {
+    bot.reply(message, 'Howdy! To see a list of everything I can do, say `help`.');
+  } else if (message.text.indexOf('all') > -1 && message.text.indexOf('user') > -1) {
+    bot.reply(message, printAll());
+  } else if (message.text.indexOf('user') > -1 || message.text.indexOf('active user') > -1 || message.text.indexOf('current user') > -1) {
+    bot.reply(message, printCurrent());
+  } else {
+    bot.reply(message, 'Sorry, I didn\'t get that. I\'m a bot, so sometimes I have trouble parsing words!');
+    bot.reply(message, 'To see a list of everything I can do, say `help`');
+  }
 });
 
 // controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {
@@ -510,8 +509,11 @@ controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function
 
 // remove from list by id
 function remove(s, l) {
+  console.log("removing", s, "from", l);
   for (var i = 0; i < l.length; i++) {
     if (l[i].id == s) {
+      console.log("found at index", i)
+      console.log("deleting", l[i].id)
       l.splice(i, 1);
       break;
     }
@@ -544,23 +546,7 @@ function strip(s) {
 
 // strip an actual link
 function stripLink(s) {
-  return s.replace('<', '').replace('>', '').replace('`', '');
-}
-
-function printCurrent() {
-  var o = "Here's a list of all current users:";
-  for (var i = 0; i < channelUserNamesCurrent.length; i++) {
-    o += '\n- ' + channelUserNamesCurrent[i].username;
-  }
-  return o;
-}
-
-function printAll() {
-  var o = "Here's a list of all users in this channel:";
-  for (var i = 0; i < channelUserNamesAll.length; i++) {
-    o += '\n- ' + channelUserNamesAll[i].username;
-  }
-  return o;
+  return s.replace(/</g, '').replace(/>/g, '').replace(/`/g, '');
 }
 
 function concatLinks(l) {
@@ -568,5 +554,34 @@ function concatLinks(l) {
   for (var i = 0; i < l.length; i++) {
     o += stripLink(l[i]) + " "
   }
+  return o;
+}
+
+function printCurrent() {
+  var o = "Here's a list of all current users:";
+  for (var i = 0; i < channelUserNamesCurrent.length; i++) {
+    var user = channelUserNamesCurrent[i];
+    o += '\n- ' + user.username + ' (' + channelUserPRCount[user.id] + ')';
+  }
+  return o;
+}
+
+function printAll() {
+  var o = "Here's a list of all users in this channel:";
+  for (var i = 0; i < channelUserNamesAll.length; i++) {
+    var user = channelUserNamesCurrent[i];
+    o += '\n- ' + user.username + ' (' + channelUserPRCount[user.id] + ')';
+  }
+  return o;
+}
+
+function helpMessage() {
+  var o  = "Here are all the things I can do:\n";
+    o += "_Review code_\t\t`@charmander review <link>`\n";
+    o += "_Add an user_\t\t`@charmander add <username>`\n";
+    o += "_Remove an user_\t\t`@charmander remove <username>`\n";
+    o += "_View all active reviewers_\t\t`@charmander ls`\n";
+    o += "_View all users in this channel_\t\t`@charmander ls -a`\n";
+    o += "_Set all users to active_\t\t`@charmander reset`";
   return o;
 }
