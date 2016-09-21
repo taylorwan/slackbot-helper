@@ -38,7 +38,7 @@ function resetUsers() {
   var month = now.month();
   var day = now.day();
 
-  var timeToFire = moment().year(year).month(month).day(day).hour(14).minute(32).second(0);
+  var timeToFire = moment().year(year).month(month).day(day).hour(10).minute(0).second(0);
 
   if (timeToFire < moment(now).add(1, "second")) {
     timeToFire.add(1, "day");
