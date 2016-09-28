@@ -157,7 +157,7 @@ controller.on('direct_mention',function(bot, message) {
   var requestUserId = message.user;
   var requestUserName;
   var requestUserNameString;
-  var messageContent = message.text;
+  var messageContent = message.text.toLowerCase();
   var messageArray = messageContent.split(' ');
   var command;
   var links = [];
@@ -170,18 +170,18 @@ controller.on('direct_mention',function(bot, message) {
   var channelUserNames = channelUserNamesCurrent.slice();
 
   /* list all possible options */
-  if (command && command.toLowerCase() === 'help') {
+  if (command && command === 'help') {
     bot.reply(message, helpMessage());
   }
 
   /* restart */
-  else if (command && command.toLowerCase() === 'restart') {
+  else if (command && command === 'restart') {
     requestRestart = true;
     bot.reply(message, 'Are you sure you\'d like to restart? All user data will be reset (@' + botName + ' yes/no)');
   }
 
   /* verify restart: yes */
-  else if (command && command.toLowerCase() === 'yes' && requestRestart) {
+  else if (command && command === 'yes' && requestRestart) {
     requestRestart = false;
     bot.reply(message, 'Restarting...see ya in a sec!');
     setTimeout( function() {
@@ -190,7 +190,7 @@ controller.on('direct_mention',function(bot, message) {
   }
 
   /* verify restart: no */
-  else if (command && command.toLowerCase() === 'no' && requestRestart) {
+  else if (command && command === 'no' && requestRestart) {
     requestRestart = false;
     bot.reply(message, 'Okay, I will not restart');
   }
@@ -203,7 +203,7 @@ controller.on('direct_mention',function(bot, message) {
   }
 
   /* restore original users */
-  else if (command && command.toLowerCase() === 'reset') {
+  else if (command && command === 'reset') {
     channelUserNamesCurrent = channelUserNamesAll.slice();
     bot.reply(message, 'All users have been restored!');
     bot.reply(message, printCurrent());
@@ -215,7 +215,7 @@ controller.on('direct_mention',function(bot, message) {
   }
 
   /* print all current users */
-  else if (command && command.toLowerCase() === 'ls') {
+  else if (command && command === 'ls') {
     bot.reply(message, printCurrent());
   }
 
@@ -225,14 +225,13 @@ controller.on('direct_mention',function(bot, message) {
   }
 
   /* pick someone to review code */
-  else if (command && links.length > 0 && command.toLowerCase() === 'review') {
+  else if (command && links.length > 0 && command === 'review') {
     // remove self
     removeUser(requestUserId, channelUserNames);
 
     // no other reviewers
     if (!channelUserNames.length) {
-      bot.reply(message, 'There are no active users who can review your code! :vince::confounded:\n\
-        You can view all users in this channel by saying `@' + botName + ' ls -a` and add any user by saying `@' + botName + ' add @<user>`');
+      bot.reply(message, noReviewersError());
       return;
     }
 
@@ -280,32 +279,38 @@ controller.on('direct_mention',function(bot, message) {
 
   /* pick someone else to review code */
 
-  else if (command && channelUserNames && prev && command.toLowerCase() === 'no') {
+  else if (command && channelUserNames && prev && command === 'no') {
 
     // remove previous user from active duty
     removeUser(prev.selectedUser.id, channelUserNamesCurrent);
-    channelUserNames = channelUserNamesCurrent.splice();
+    channelUserNames = channelUserNamesCurrent.slice();
 
     // remove self
     removeUser(prev.requestUserId, channelUserNames);
 
+    // decrease previous user prCount and relieve them of reviewing duty
     prev.selectedUser.prCount--;
     bot.reply(message, 'I messed up. Sorry, ' + getUsername(prev.selectedUser) + '! :see_no_evil: I\'ve temporarily relieved you from code review duties.');
 
+    // no other reviewers
+    if (!channelUserNames.length) {
+      bot.reply(message, noReviewersError());
+      return;
+    }
+
+    // other reviewers exist
     // select a new user
     var randomnumber = Math.floor(Math.random() * (channelUserNames.length));
     var selectedUser = channelUserNames[randomnumber];
-
-    // links
     selectedUser.prCount++;
     bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: ' + selectedUser.prCount + ') please review ' + prev.requestUserNameString + ' code: ' + concatLinks(prev.links));
 
-    // update
+    // update prev
     prev.selectedUser = selectedUser;
   }
 
   /* remove an user from active duty */
-  else if (command && links.length > 0 && command.toLowerCase() === 'remove') {
+  else if (command && links.length > 0 && command === 'remove') {
 
     var name = stripUser(links[0]);
     var user = find(name, channelUserNamesCurrent);
@@ -329,7 +334,7 @@ controller.on('direct_mention',function(bot, message) {
   }
 
   /* add an user to active duty */
-  else if (command && links.length > 0 && command.toLowerCase() === 'add') {
+  else if (command && links.length > 0 && command === 'add') {
 
     var name = stripUser(links[0]);
     var user = find(name, channelUserNamesAll);
@@ -371,15 +376,15 @@ controller.on('direct_mention',function(bot, message) {
     * - generic error message
     */
 
-  else if (prev) {
-    bot.reply(message, 'Hmm. I didn\'t get that. Try `@' + botName + ' review ' + stripLink(prev.link) + '`');
-  }
-  else if (command && command.toLowerCase() === 'no') {
+  else if (command && !prev && command === 'no') {
     bot.reply(message, 'I didn\'t do anything yet!');
     bot.reply(message, 'Try `@' + botName + ' review <link>`');
   }
+  else if (contains(messageContent, ['stop', 'devolve', 'shut up', 'shush', 'ugh', 'be quiet', 'drop', 'kill', 'no', 'stupid', 'dumb', 'quit', 'bad'])) {
+    bot.reply(message, ':white_frowning_face: I\'m trying my best!');
+  }
   else {
-    bot.reply(message, 'Sorry, I didn\'t get that. I\'m a bot, so sometimes I have trouble parsing words!');
+    bot.reply(message, 'Sorry, I didn\'t get that. I\'m a bot, so sometimes I have trouble parsing words! :see_no_evil:');
     bot.reply(message, 'To see a list of everything I can do, say `help`');
   }
 
@@ -633,4 +638,11 @@ function userActiveError(user, message) {
   if (message)
     err += '\n' + message;
   return err;
+}
+
+function noReviewersError() {
+  prev = null;
+  return 'There are no active users who can review your code! :vince::confounded:\n' +
+         'You can view all users in this channel by saying `@' + botName + ' ls -a` ' +
+         'and add any user by saying `@' + botName + ' add @<user>`';
 }
