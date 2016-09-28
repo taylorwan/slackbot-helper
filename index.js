@@ -7,17 +7,18 @@ if (!process.env.token || !process.env.channel) {
 var Botkit = require('botkit');
 var moment = require('moment');
 var os = require('os');
+
 var channelId; //own private channel id
 var channelInfo; //own private channel info
 var teamUsers; //users in all of the slack group
 var channelUserNamesAll; //original list of all users in private channel
 var channelUserNamesCurrent; //list of users in private channel, possibly with users removed
-var channelUserPRCount; //Count of PRs done per user
 var prev; //User that was selected previously
 var botName;
 var bannedUsers = [
   'Vincent Eberle'
 ];
+var requestRestart = false;
 
 var controller = Botkit.slackbot({
     debug: false
@@ -27,8 +28,20 @@ var bot = controller.spawn({
     token: process.env.token
 }).startRTM();
 
-//resets users in the morning
-function resetUsers() {
+
+/**
+ * BOT START
+ * - resetUsers
+ * - boot
+ */
+
+/* start */
+controller.on('rtm_open', function() {
+  boot(bot);
+});
+
+/* resets users in the morning */
+function resetUsers(bot) {
   channelUserNamesCurrent = channelUserNamesAll.slice();
 
   bot.say({
@@ -41,7 +54,7 @@ function resetUsers() {
   var month = now.month();
   var day = now.day();
 
-  var timeToFire = moment().year(year).month(month).day(day).hour(10).minute(0).second(0);
+  var timeToFire = moment().year(year).month(month).day(day).hour(13).minute(0).second(0);
 
   if (timeToFire < moment(now).add(1, "second")) {
     timeToFire.add(1, "day");
@@ -50,7 +63,8 @@ function resetUsers() {
   setTimeout(resetUsers, timeToFire - now);
 }
 
-controller.on('rtm_open', function(bot) {
+/* boot up */
+function boot(bot) {
   botName = bot.identity.name;
 
   //get users list
@@ -59,12 +73,7 @@ controller.on('rtm_open', function(bot) {
       bot.botkit.log('Failed to retrieve list of users in team.', err);
       return;
     }
-    channelUserPRCount = {};
     teamUsers = res.members;
-    teamUsers.forEach(function(teamUser) {
-      channelUserPRCount[teamUser.id] = 0;
-    });
-
   });
 
   //gets channel id
@@ -87,11 +96,11 @@ controller.on('rtm_open', function(bot) {
     }
 
     bot.say({
-      text: 'Hello! My name is ' + botName + '.',
+      text: 'Hello! My name is ' + botName + ' :charmander::sunny:',
       channel: channelId
     });
 
-    //gets users in channel
+    // gets users in channel
     bot.api.groups.info({
       channel: channelId
     }, function(err, res) {
@@ -111,23 +120,40 @@ controller.on('rtm_open', function(bot) {
               channelUserNamesAll.push({
                 name: teamUser.profile.real_name,
                 username: teamUser.name,
-                id: teamUser.id
+                id: teamUser.id,
+                prCount: 0
               });
             }
           }
         });
       });
 
-      //reset users
+      // reset users
       resetUsers(bot);
 
     });
   });
+}
 
-});
+
+/**
+ * DIRECT MENTION FUNCTIONALITY
+ * - help
+ * - restart
+ * - reset pr
+ * - reset
+ * - ls -a
+ * - ls
+ * - increment / decrement
+ * - review
+ * - no
+ * - remove
+ * - add
+ * - greetings (hi, hello, hey)
+ */
 
 // reply to a direct mention - @bot hello
-controller.on('direct_mention',function(bot,message) {
+controller.on('direct_mention',function(bot, message) {
   var requestUserId = message.user;
   var requestUserName;
   var requestUserNameString;
@@ -148,6 +174,34 @@ controller.on('direct_mention',function(bot,message) {
     bot.reply(message, helpMessage());
   }
 
+  /* restart */
+  else if (command && command.toLowerCase() === 'restart') {
+    requestRestart = true;
+    bot.reply(message, 'Are you sure you\'d like to restart? All user data will be reset (@' + botName + ' yes/no)');
+  }
+
+  /* verify restart: yes */
+  else if (command && command.toLowerCase() === 'yes' && requestRestart) {
+    requestRestart = false;
+    bot.reply(message, 'Restarting...see ya in a sec!');
+    setTimeout( function() {
+      boot(bot);
+    }, 1000);
+  }
+
+  /* verify restart: no */
+  else if (command && command.toLowerCase() === 'no' && requestRestart) {
+    requestRestart = false;
+    bot.reply(message, 'Okay, I will not restart');
+  }
+
+  /* restore pr counts */
+  else if (command && contains(messageContent, ['reset pr', 'pr reset'])) {
+    resetPRCount();
+    bot.reply(message, 'All PR counts have been reset!');
+    bot.reply(message, printCurrent());
+  }
+
   /* restore original users */
   else if (command && command.toLowerCase() === 'reset') {
     channelUserNamesCurrent = channelUserNamesAll.slice();
@@ -155,68 +209,73 @@ controller.on('direct_mention',function(bot,message) {
     bot.reply(message, printCurrent());
   }
 
+  /* print all users */
+  else if (command && contains(messageContent, ['ls -a'])) {
+    bot.reply(message, printAll());
+  }
+
   /* print all current users */
   else if (command && command.toLowerCase() === 'ls') {
-    if (links && links[0] === '-a') {
-      bot.reply(message, printAll());
-    }
-    else {
-      bot.reply(message, printCurrent());
-    }
+    bot.reply(message, printCurrent());
+  }
+
+  /* increment/decrement PR count for an user */
+  else if (command && contains(command, ['++', '--'])) {
+    bot.reply(message, updatePRCount(command)); //updatePRCount returns any success/error messages
   }
 
   /* pick someone to review code */
-  else if (command && links.length > 0 && channelUserNames && command.toLowerCase() === 'review') {
+  else if (command && links.length > 0 && command.toLowerCase() === 'review') {
+    // remove self
+    removeUser(requestUserId, channelUserNames);
 
-      //remove self
-      for (var i = 0; i < channelUserNames.length; i++) {
-        if (channelUserNames[i].id === requestUserId) {
-          requestUserName = channelUserNames[i].name;
+    // no other reviewers
+    if (!channelUserNames.length) {
+      bot.reply(message, 'There are no active users who can review your code! :vince::confounded:\n\
+        You can view all users in this channel by saying `@' + botName + ' ls -a` and add any user by saying `@' + botName + ' add @<user>`');
+      return;
+    }
+
+    //determine users that have had the fewest review requests so far
+    var low = 100,
+      high = 0,
+      user,
+      prCount;
+    for (var i in channelUserNames) {
+      user = channelUserNames[i];
+      prCount = user.prCount;
+      if (prCount < low) {
+          low = prCount;
+      }
+      if (prCount > high) {
+          high = prCount;
+      }
+    }
+    if (low != high) {
+      for (var i in channelUserNames) {
+        user = channelUserNames[i];
+        prCount = user.prCount;
+        if (prCount > low) {
+          // remove from the list
           channelUserNames.splice(i, 1);
-          break;
         }
       }
+    }
 
-      //determine users that have had the fewest review requests so far
-      var low=100,
-          high=0,
-          user,
-          prCount;
-      for(var i = 0; i < channelUserNames.length; i++) {
-          user = channelUserNames[i];
-          prCount = channelUserPRCount[user.id];
-          if(prCount < low) {
-              low = prCount;
-          }
-          if(prCount > high) {
-              high = prCount;
-          }
-      }
-      if(low != high) {
-          for(var i = 0; i < channelUserNames.length; i++) {
-              user = channelUserNames[i];
-              prCount = channelUserPRCount[user.id];
-              if(prCount > low) {
-                  //remove from the list
-                  channelUserNames.splice(i, 1);
-              }
-          }
-      }
+    requestUserNameString = requestUserName ? requestUserName + '\'s' : 'this';
 
-      requestUserNameString = requestUserName ? requestUserName + '\'s' : 'this';
+    var randomnumber = Math.floor(Math.random() * (channelUserNames.length));
+    var selectedUser = channelUserNames[randomnumber];
 
-      var randomnumber = Math.floor(Math.random() * (channelUserNames.length));
-      var selectedUser = channelUserNames[randomnumber];
+    selectedUser.prCount++;
+    bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: ' + selectedUser.prCount + ') please review ' + requestUserNameString + ' code: ' + concatLinks(links));
 
-      channelUserPRCount[selectedUser.id]++;
-      bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count:'+channelUserPRCount[selectedUser.id]+') please review ' + requestUserNameString + ' code: ' + concatLinks(links));
-
-      // update
-      prev = {};
-      prev.links = links;
-      prev.selectedUser = selectedUser;
-      prev.requestUserNameString = requestUserNameString;
-      prev.requestUserId = requestUserId;
+    // update
+    prev = {};
+    prev.links = links;
+    prev.selectedUser = selectedUser;
+    prev.requestUserNameString = requestUserNameString;
+    prev.requestUserId = requestUserId;
   }
 
   /* pick someone else to review code */
@@ -224,66 +283,87 @@ controller.on('direct_mention',function(bot,message) {
   else if (command && channelUserNames && prev && command.toLowerCase() === 'no') {
 
     // remove previous user from active duty
-    remove(prev.selectedUser.id, channelUserNamesCurrent);
+    removeUser(prev.selectedUser.id, channelUserNamesCurrent);
     channelUserNames = channelUserNamesCurrent.splice();
 
     // remove self
-    remove(prev.requestUserId, channelUserNames);
+    removeUser(prev.requestUserId, channelUserNames);
 
-    channelUserPRCount[prev.selectedUser.id]--;
-    bot.reply(message, 'I messed up. Sorry, ' + prev.selectedUser.name.split(" ")[0] + '! I\'ve temporarily relieved you from code review duties.');
+    prev.selectedUser.prCount--;
+    bot.reply(message, 'I messed up. Sorry, ' + getUsername(prev.selectedUser) + '! :see_no_evil: I\'ve temporarily relieved you from code review duties.');
 
     // select a new user
-    var randomnumber = Math.floor(Math.random() * (channelUserNames.length - 1));
+    var randomnumber = Math.floor(Math.random() * (channelUserNames.length));
     var selectedUser = channelUserNames[randomnumber];
 
     // links
-    channelUserPRCount[selectedUser.id]++;
-    bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count:'+channelUserPRCount[selectedUser.id]+') please review ' + prev.requestUserNameString + ' code: ' + concatLinks(prev.links));
+    selectedUser.prCount++;
+    bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: ' + selectedUser.prCount + ') please review ' + prev.requestUserNameString + ' code: ' + concatLinks(prev.links));
 
     // update
     prev.selectedUser = selectedUser;
-
   }
 
   /* remove an user from active duty */
   else if (command && links.length > 0 && command.toLowerCase() === 'remove') {
 
-    var name = strip(links[0]);
-    var user = find(name, channelUserNamesCurrent) || findByUsername(name, channelUserNamesCurrent);
+    var name = stripUser(links[0]);
+    var user = find(name, channelUserNamesCurrent);
 
-    if (user === 0) {
-      bot.reply(message, 'Hmm...I couldn\'t find a human by that name.\nTry `@' + botName + ' ls` to view all active reviewers');
+    // remove
+    if (user) {
+      removeUser(user.id, channelUserNamesCurrent);
+      bot.reply(message, 'Got it! I will not ask ' + getUsername(user) + ' to review code.\nYou can re-add any user by saying `@' + botName + ' add @<user>`');
       return;
     }
 
-    // remove
-    remove(user.id, channelUserNamesCurrent);
-    bot.reply(message, 'Got it! I will not ask ' + user.name.split(" ")[0] + ' to review code.\nYou can re-add any user by saying `@' + botName + ' add @<user>`');
+    // already inactive
+    user = find(name, channelUserNamesAll);
+    if (user) {
+      bot.reply(message, userNotActiveError(user, 'Did you mean to remove a different user?'));
+      return;
+    }
+
+    // user not found
+    bot.reply(message, userNotFoundError());
   }
 
   /* add an user to active duty */
-  else if (command && links.length > 0 &&  command.toLowerCase() === 'add') {
+  else if (command && links.length > 0 && command.toLowerCase() === 'add') {
 
-    var name = strip(links[0]);
-    var user = find(name, channelUserNamesAll) || findByUsername(name, channelUserNamesAll);
+    var name = stripUser(links[0]);
+    var user = find(name, channelUserNamesAll);
 
+    // user not found
     if (user === 0) {
-      bot.reply(message, 'Hmm...I couldn\'t find a human by that name.\nTry `@' + botName + ' ls` to view all users in this channel');
+      bot.reply(message, userNotFoundError());
       return;
     }
 
-    if (find(name, channelUserNamesCurrent) !== 0 ||
-        findByUsername(name, channelUserNamesCurrent) !== 0 ) {
-      bot.reply(message, 'Hmm...looks like ' + user.name.split(' ')[0]+ ' is already active.\nYou can say `@' + botName + ' ls` to view all active users');
+    // user already active
+    if (find(name, channelUserNamesCurrent)) {
+      bot.reply(message, userActiveError(user, 'You can say `@' + botName + ' ls` to view all active users'));
       return;
     }
 
     // add
-    channelUserNamesCurrent.push(user);
-    bot.reply(message, 'Got it! My magic box will now include ' + user.name.split(" ")[0] + ' when it picks someone to review code');
+    addUser(user, channelUserNamesCurrent);
+    bot.reply(message, 'Got it! My magic box will now include ' + getUsername(user) + ' when it picks someone to review code');
   }
 
+  /* greetings */
+  else if (command && contains(messageContent, ['hi', 'hello', 'hey'])) {
+    var greetings = [
+      '\'Sup homeslice?',
+      'What do you want? <(ಠ_ಠ)>',
+      'Howdy howdy howdy',
+      'I like your face.',
+      'How do you comfort a JavaScript bug? You console it.'
+    ];
+
+    var randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
+    bot.reply(message, randomGreeting);
+  }
 
   /** error!
     * - print error msg (with most recently used link, if available)
@@ -298,40 +378,36 @@ controller.on('direct_mention',function(bot,message) {
     bot.reply(message, 'I didn\'t do anything yet!');
     bot.reply(message, 'Try `@' + botName + ' review <link>`');
   }
-  else if (message.text.toLowerCase().indexOf('hi') > -1 ||
-           message.text.toLowerCase().indexOf('hello') > -1 ||
-           message.text.toLowerCase().indexOf('hey') > -1) {
-    var greetings = [
-      '\'Sup homeslice?',
-      'What do you want? <(ಠ_ಠ)>',
-      'Howdy howdy howdy',
-      'I like your face.',
-      'How do you comfort a JavaScript bug? You console it.'
-    ];
-
-    var randomGreeting = greetings[Math.floor(Math.random()*greetings.length)];
-    bot.reply(message, randomGreeting);
-  }
   else {
-    bot.reply(message, 'Try `@' + botName + ' review <link>`');
+    bot.reply(message, 'Sorry, I didn\'t get that. I\'m a bot, so sometimes I have trouble parsing words!');
+    bot.reply(message, 'To see a list of everything I can do, say `help`');
   }
 
+  return;
 });
+
+
+/**
+ * DIRECT MESSAGE FUNCTIONALITY
+ * - help
+ * - greetings (hi, hello, hey)
+ * - list users (all users, active/current users)
+ */
 
 // reply to a direct message
 controller.on('direct_message',function(bot,message) {
-  if (!message.text) {
+  if (!messageContent) {
     bot.reply(message,'Hmm..I didn\'t catch that');
     return;
   }
   // reply to _message_ by using the _bot_ object
-  if (message.text.indexOf('help') > -1 || message.text.indexOf('can you') > -1) {
+  if (contains(messageContent, ['help', 'can you'])) {
     bot.reply(message, helpMessage());
-  } else if (message.text.indexOf('hi') > -1 || message.text.indexOf('hello') > -1 || message.text.indexOf('hey') > -1) {
+  } else if (contains(messageContent, ['hi', 'hello', 'hey'])) {
     bot.reply(message, 'Howdy! To see a list of everything I can do, say `help`.');
-  } else if (message.text.indexOf('all') > -1 && message.text.indexOf('user') > -1) {
+  } else if (contains(messageContent, ['all', 'user'])) {
     bot.reply(message, printAll());
-  } else if (message.text.indexOf('user') > -1 || message.text.indexOf('active user') > -1 || message.text.indexOf('current user') > -1) {
+  } else if (contains(messageContent, ['user', 'active user', 'current user'])) {
     bot.reply(message, printCurrent());
   } else {
     bot.reply(message, 'Sorry, I didn\'t get that. I\'m a bot, so sometimes I have trouble parsing words!');
@@ -339,22 +415,47 @@ controller.on('direct_message',function(bot,message) {
   }
 });
 
-// remove from list by id
-function remove(s, l) {
-  console.log("removing", s, "from", l);
-  for (var i = 0; i < l.length; i++) {
+
+/**
+ * USER HELPERS
+ * - addUser
+ * - removeUser
+ * - getUsername
+ * - find (findById, findByUsername)
+ * - incrementCount
+ * - decrementCount
+ * - updatePRCount
+ * - resetPRCount
+ */
+
+/* add user to list */
+function addUser(s, l) {
+  l.push(s);
+}
+
+/* remove from list by id */
+function removeUser(s, l) {
+  for (var i in l) {
     if (l[i].id == s) {
-      console.log("found at index", i)
-      console.log("deleting", l[i].id)
       l.splice(i, 1);
       break;
     }
   }
 }
 
-// find a user by id
+/* get a user's username */
+function getUsername(user) {
+  return user.name.split(' ')[0];
+}
+
+/* find a user */
 function find(s, l) {
-  for (var i = 0; i < l.length; i++) {
+  return findById(s, l) || findByUsername(s, l);
+}
+
+/* find a user by id */
+function findById(s, l) {
+  for (var i in l) {
     if (l[i].id == s) {
       return l[i];
     }
@@ -362,9 +463,9 @@ function find(s, l) {
   return 0;
 }
 
-// find a user by username
+/* find a user by username */
 function findByUsername(s, l) {
-  for (var i = 0; i < l.length; i++) {
+  for (var i in l) {
     if (l[i].username == s) {
       return l[i];
     }
@@ -372,48 +473,164 @@ function findByUsername(s, l) {
   return 0;
 }
 
-function strip(s) {
+/* increases a user's PR count */
+function incrementCount(user) {
+  user.prCount++;
+}
+
+/* decreases a user's PR count */
+function decrementCount(user) {
+  if (user.prCount > 0) {
+    user.prCount--;
+    return true;
+  }
+  return false;
+}
+
+/* increment/decrement a user's PR count */
+function updatePRCount(command) {
+  // determine if we're incrementing or decrementing
+  var operator;
+  if (contains(command, ['++']))
+    operator = '++';
+  else if (contains(command, ['--']))
+    operator = '--';
+  else {
+    return 'Hmm, something went wrong'
+  }
+
+  // find user
+  var name = stripUser(command.replace(operator, ''));
+  var user = find(name, channelUserNamesCurrent);
+
+  // user is active, increment/decrement
+  if (user) {
+    if (operator == '++')
+      incrementCount(user);
+    else
+      if (!decrementCount(user))
+        return getUsername(user) + ' already has a PR count of ' + user.prCount + '!';
+    return 'Success! ' + getUsername(user) + ' now has a PR count of ' + user.prCount;
+  }
+
+  // user is not active
+  user = find(name, channelUserNamesAll);
+  if (user)
+      return userNotActiveError(user, 'You can only ' + operator + ' the PR count of active users');
+
+  // error: no user found
+  return userNotFoundError();
+}
+
+/* reset the PR count for all users */
+function resetPRCount() {
+  channelUserNamesAll.map(function(user) {
+    return user.prCount = 0;
+  })
+}
+
+
+/**
+ * GENERAL HELPERS
+ * - stripUser, stripLink
+ * - concatLinks
+ * - contains
+ */
+
+/* strip an user id */
+function stripUser(s) {
   return s.replace('@', '').replace('<', '').replace('>', '');
 }
 
-// strip an actual link
+/* strip a link */
 function stripLink(s) {
   return s.replace(/</g, '').replace(/>/g, '').replace(/`/g, '');
 }
 
+/* concatenate a message */
 function concatLinks(l) {
   var o = "";
-  for (var i = 0; i < l.length; i++) {
+  for (var i in l) {
     o += stripLink(l[i]) + " "
   }
   return o;
 }
 
+/* check if a string contains any of the elements in an array */
+function contains(s, l) {
+  for (i in l) {
+    if (s.indexOf(l[i]) > -1) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * GENERAL MESSAGING
+ * - printCurrent
+ * - printAll
+ * - helpMessage
+ */
+
+/* return a string of all active users */
 function printCurrent() {
-  var o = "Here's a list of all current users:";
-  for (var i = 0; i < channelUserNamesCurrent.length; i++) {
+  var o = "Here's a list of all active users:";
+  for (var i in channelUserNamesCurrent) {
     var user = channelUserNamesCurrent[i];
-    o += '\n- ' + user.username + ' (Review count:' + channelUserPRCount[user.id] + ')';
+    o += '\n- ' + user.username + ' (Review count: ' + user.prCount + ')';
   }
   return o;
 }
 
+/* return a string of all users */
 function printAll() {
   var o = "Here's a list of all users in this channel:";
-  for (var i = 0; i < channelUserNamesAll.length; i++) {
-    var user = channelUserNamesCurrent[i];
-    o += '\n- ' + user.username + ' (Review count:' + channelUserPRCount[user.id] + ')';
+  for (var i in channelUserNamesAll) {
+    var user = channelUserNamesAll[i];
+    o += '\n- ' + user.username + ' (Review count: ' + user.prCount + ')';
   }
   return o;
 }
 
+/* return a string with all bot capabilities */
 function helpMessage() {
   var o  = "Here are all the things I can do:\n";
-    o += "_Review code_\t\t`@" + botName + " review <link>`\n";
+    o += "_Pick someone to review code_\t\t`@" + botName + " review <link>`\n";
     o += "_Add an user_\t\t`@" + botName + " add <username>`\n";
     o += "_Remove an user_\t\t`@" + botName + " remove <username>`\n";
+    o += "_Increase an user's PR count_\t\t`@" + botName + " <username>++`\n";
+    o += "_Decrease an user's PR count_\t\t`@" + botName + " <username>--`\n";
+    o += "_Reset all PR counts_\t\t`@" + botName + " reset pr`\n";
     o += "_View all active reviewers_\t\t`@" + botName + " ls`\n";
     o += "_View all users in this channel_\t\t`@" + botName + " ls -a`\n";
-    o += "_Set all users to active_\t\t`@" + botName + " reset`";
+    o += "_Set all users to active_\t\t`@" + botName + " reset`\n";
+    o += "_Restart_\t\t`@" + botName + " restart`";
   return o;
+}
+
+
+/**
+ * ERROR MESSAGING
+ * - userNotFoundError
+ * - userNotActiveError
+ * - userActiveError
+ */
+
+function userNotFoundError() {
+  return 'Hmm...I couldn\'t find a human by that name.\nTry `@' + botName + ' ls` to view all users in this channel'
+}
+
+function userNotActiveError(user, message) {
+  var err = 'Hmm...looks like ' + getUsername(user) + ' is not active.';
+  if (message)
+    err += '\n' + message;
+  return err;
+}
+
+function userActiveError(user, message) {
+  var err = 'Hmm...looks like ' + getUsername(user) + ' is already active.';
+  if (message)
+    err += '\n' + message;
+  return err;
 }
