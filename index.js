@@ -15,6 +15,9 @@ var channelUserNamesCurrent; //list of users in private channel, possibly with u
 var channelUserPRCount; //Count of PRs done per user
 var prev; //User that was selected previously
 var botName;
+var bannedUsers = [
+  'Vincent Eberle'
+];
 
 var controller = Botkit.slackbot({
     debug: false
@@ -104,8 +107,7 @@ controller.on('rtm_open', function(bot) {
       memberIds.forEach(function(memberId){
         teamUsers.forEach(function(teamUser) {
           if (teamUser.id === memberId) {
-            if (teamUser.profile.real_name.length > 0) {
-
+            if (teamUser.profile.real_name.length > 0 && bannedUsers.indexOf(teamUser.profile.real_name) <= -1) {
               channelUserNamesAll.push({
                 name: teamUser.profile.real_name,
                 username: teamUser.name,
