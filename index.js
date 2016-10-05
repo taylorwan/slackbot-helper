@@ -4,35 +4,34 @@ if (!process.env.token || !process.env.channel) {
     process.exit(1);
 }
 
-var Botkit = require('botkit');
-var moment = require('moment');
-var os = require('os');
+var Botkit = require('botkit'),
+    moment = require('moment'),
+    os     = require('os'),
 
-var channelId; //own private channel id
-var channelInfo; //own private channel info
-var teamUsers; //users in all of the slack group
-var channelUserNamesAll; //original list of all users in private channel
-var channelUserNamesCurrent; //list of users in private channel, possibly with users removed
-var prev; //User that was selected previously
-var botName;
-var bannedUsers = [
-  'Vincent Eberle'
-];
-var requestRestart;
+    channelId, //own private channel id
+    channelInfo, //own private channel info
+    teamUsers, //users in all of the slack group
+    channelUserNamesAll, //original list of all users in private channel
+    channelUserNamesCurrent, //list of users in private channel, possibly with users removed
+    prev, //User that was selected previously
+    botName,
+    requestRestart,
+    bannedUsers = ['Vincent Eberle'];
 
 var controller = Botkit.slackbot({
-    debug: false
+  debug: false
 });
 
 var bot = controller.spawn({
-    token: process.env.token
+  token: process.env.token
 }).startRTM();
 
 
 /**
  * RESET FUNCTIONALITY
- * - morningReset: retore all users
- * - weeklyReset: reset PR counts
+ * - resetController: determine which reset to call
+ * - dailyReset: retore all users
+ * - weeklyReset: restore all users & reset PR counts
  * - boot
  */
 
@@ -41,38 +40,41 @@ controller.on('rtm_open', function() {
   boot(bot);
 });
 
-/* resets users in the morning */
-function morningReset(bot) {
-  // restore all users and let user know that it's done
-  say(restoreUsers(), bot);
-
+function resetController(bot) {
   // get moment object for 9am tomorrow
-  var now      = moment(),
-      tomorrow = moment().add(1, 'days').hour(9).minute(0).second(0);
+  var now        = moment(),
+      timeToFire = moment().add(1, 'days').hour(9).minute(0).second(0);
 
-  // if tomorrow is weekend, add 2 days (=> Monday)
-  if (tomorrow.weekday() > 5)
-    tomorrow.add(2, 'days');
+  // perform appropriate reset for today
+  if (now.weekday() === 1)
+    say(weeklyReset(), bot); // weekly reset on Mondays
+  else
+    say(dailyReset(), bot); // daily reset for all other weekdays
 
-  // do this again tomorrow
-  setTimeout(morningReset, tomorrow - now);
+  // if timeToFire is weekend, add 2 days (=> Monday)
+  if (timeToFire.weekday() > 5)
+    timeToFire.add(2, 'days');
+
+  // run this again "timeToFire"
+  setTimeout(function() {
+    resetController(bot)
+  }, timeToFire - now);
 }
 
-/* resets PR counts weekly */
-function weeklyReset(bot) {
-  // reset PR count and let user know that it's done
-  say(resetPRCount(), bot);
+/* daily reset functions */
+function dailyReset() {
+  // restore all users
+  return 'Good Morning. ' + restoreUsers();
+}
 
-  // get moment object for 9am Monday
-  var now    = moment(),
-      monday = moment().day("Monday").hour(9).minute(0).second(0);
+/* weekly reset functions */
+function weeklyReset() {
+  // restore all users
+  restoreUsers();
+  // reset PR count
+  resetPRCount();
 
-  // if it returns the date for this past Monday, add 7 days (=> next Monday)
-  if (monday.day() <= now.day())
-    monday.add(7, 'days');
-
-  // do this again next Monday
-  setTimeout(weeklyReset, monday - now);
+  return 'Happy Monday! All users and PR counts have been reset\n' + printCurrent();
 }
 
 /* boot up */
@@ -108,8 +110,6 @@ function boot(bot) {
       return;
     }
 
-    say('Hello! My name is ' + botName + ' :charmander::sunny:', bot)
-
     // gets users in channel
     bot.api.groups.info({
       channel: channelId
@@ -129,8 +129,8 @@ function boot(bot) {
             if (teamUser.profile.real_name.length > 0 && bannedUsers.indexOf(teamUser.profile.real_name) <= -1) {
               channelUserNamesAll.push({
                 name: teamUser.profile.real_name,
-                username: teamUser.name,
-                id: teamUser.id,
+                username: teamUser.name.toLowerCase(),
+                id: teamUser.id.toLowerCase(),
                 prCount: 0
               });
             }
@@ -138,9 +138,11 @@ function boot(bot) {
         });
       });
 
+      // welcome!
+      say('Hello! My name is ' + botName + ' :charmander::sunny:', bot);
+
       // activate resets
-      morningReset(bot); // restore all users
-      weeklyReset(bot); // reset PR counts
+      resetController(bot);
     });
   });
 }
@@ -164,7 +166,7 @@ function boot(bot) {
 
 // reply to a direct mention - @bot hello
 controller.on('direct_mention',function(bot, message) {
-  var requestUserId = message.user;
+  var requestUserId = message.user.toLowerCase();
   var requestUserName;
   var requestUserNameString;
   var messageContent = message.text.toLowerCase();
@@ -207,14 +209,12 @@ controller.on('direct_mention',function(bot, message) {
 
   /* restore pr counts */
   else if (command && contains(messageContent, ['reset pr', 'pr reset'])) {
-    resetPRCount();
+    bot.reply(message, resetPRCount());
   }
 
   /* restore original users */
   else if (command && command === 'reset') {
-    channelUserNamesCurrent = channelUserNamesAll.slice();
-    bot.reply(message, 'All users have been restored!');
-    bot.reply(message, printCurrent());
+    bot.reply(message, restoreUsers());
   }
 
   /* print all users */
@@ -459,11 +459,7 @@ function removeUser(s, l) {
 
 /* restore all users to active */
 function restoreUsers() {
-  // if user is not in list, add
-  for (var i in channelUserNamesAll) {
-    if (!findById(channelUserNamesAll[i].id, channelUserNamesCurrent))
-      addUser(channelUserNamesAll[i], channelUserNamesCurrent);
-  }
+  channelUserNamesCurrent = channelUserNamesAll.slice();
   return 'All users have been restored!\n' + printCurrent();
 }
 
@@ -524,23 +520,23 @@ function updatePRCount(command) {
   }
 
   // find user
-  var name = stripUser(command.replace(operator, ''));
-  var user = find(name, channelUserNamesCurrent);
+  var name            = stripUser(command.replace(operator, '')),
+      user            = find(name, channelUserNamesCurrent),
+      userToIncrement = find(name, channelUserNamesAll);
 
   // user is active, increment/decrement
-  if (user) {
+  if (user && userToIncrement) {
     if (operator == '++')
-      incrementCount(user);
+      incrementCount(userToIncrement);
     else
-      if (!decrementCount(user))
+      if (!decrementCount(userToIncrement))
         return getUsername(user) + ' already has a PR count of ' + user.prCount + '!';
     return 'Success! ' + getUsername(user) + ' now has a PR count of ' + user.prCount;
   }
 
   // user is not active
-  user = find(name, channelUserNamesAll);
-  if (user)
-      return userNotActiveError(user, 'You can only ' + operator + ' the PR count of active users');
+  if (userToIncrement)
+      return userNotActiveError(userToIncrement, 'You can only ' + operator + ' the PR count of active users');
 
   // error: no user found
   return userNotFoundError();
@@ -632,6 +628,8 @@ function helpMessage() {
     o += "_View all users in this channel_\t\t`@" + botName + " ls -a`\n";
     o += "_Set all users to active_\t\t`@" + botName + " reset`\n";
     o += "_Restart_\t\t`@" + botName + " restart`";
+    o += "\nI restore all users every weekday morning at 9am, and ";
+    o += "reset PR counts to 0 every Monday at 9am";
   return o;
 }
 
