@@ -18,7 +18,7 @@ var botName;
 var bannedUsers = [
   'Vincent Eberle'
 ];
-var requestRestart = false;
+var requestRestart;
 
 var controller = Botkit.slackbot({
     debug: false
@@ -30,8 +30,9 @@ var bot = controller.spawn({
 
 
 /**
- * BOT START
- * - resetUsers
+ * RESET FUNCTIONALITY
+ * - morningReset: retore all users
+ * - weeklyReset: reset PR counts
  * - boot
  */
 
@@ -41,31 +42,43 @@ controller.on('rtm_open', function() {
 });
 
 /* resets users in the morning */
-function resetUsers(bot) {
-  channelUserNamesCurrent = channelUserNamesAll.slice();
+function morningReset(bot) {
+  // restore all users and let user know that it's done
+  say(restoreUsers(), bot);
 
-  bot.say({
-    text: 'All users have been restored!\n' + printCurrent(),
-    channel: channelId
-  });
+  // get moment object for 9am tomorrow
+  var now      = moment(),
+      tomorrow = moment().add(1, 'days').hour(9).minute(0).second(0);
 
-  var now = moment();
-  var year = now.year();
-  var month = now.month();
-  var day = now.day();
+  // if tomorrow is weekend, add 2 days (=> Monday)
+  if (tomorrow.weekday() > 5)
+    tomorrow.add(2, 'days');
 
-  var timeToFire = moment().year(year).month(month).day(day).hour(13).minute(0).second(0);
+  // do this again tomorrow
+  setTimeout(morningReset, tomorrow - now);
+}
 
-  if (timeToFire < moment(now).add(1, "second")) {
-    timeToFire.add(1, "day");
-  }
+/* resets PR counts weekly */
+function weeklyReset(bot) {
+  // reset PR count and let user know that it's done
+  say(resetPRCount(), bot);
 
-  setTimeout(resetUsers, timeToFire - now);
+  // get moment object for 9am Monday
+  var now    = moment(),
+      monday = moment().day("Monday").hour(9).minute(0).second(0);
+
+  // if it returns the date for this past Monday, add 7 days (=> next Monday)
+  if (monday.day() <= now.day())
+    monday.add(7, 'days');
+
+  // do this again next Monday
+  setTimeout(weeklyReset, monday - now);
 }
 
 /* boot up */
 function boot(bot) {
-  botName = bot.identity.name;
+  botName        = bot.identity.name;
+  requestRestart = false;
 
   //get users list
   bot.api.users.list({}, function(err, res) {
@@ -95,10 +108,7 @@ function boot(bot) {
       return;
     }
 
-    bot.say({
-      text: 'Hello! My name is ' + botName + ' :charmander::sunny:',
-      channel: channelId
-    });
+    say('Hello! My name is ' + botName + ' :charmander::sunny:', bot)
 
     // gets users in channel
     bot.api.groups.info({
@@ -128,9 +138,9 @@ function boot(bot) {
         });
       });
 
-      // reset users
-      resetUsers(bot);
-
+      // activate resets
+      morningReset(bot); // restore all users
+      weeklyReset(bot); // reset PR counts
     });
   });
 }
@@ -198,8 +208,6 @@ controller.on('direct_mention',function(bot, message) {
   /* restore pr counts */
   else if (command && contains(messageContent, ['reset pr', 'pr reset'])) {
     resetPRCount();
-    bot.reply(message, 'All PR counts have been reset!');
-    bot.reply(message, printCurrent());
   }
 
   /* restore original users */
@@ -425,6 +433,7 @@ controller.on('direct_message',function(bot,message) {
  * USER HELPERS
  * - addUser
  * - removeUser
+ * - restoreUsers
  * - getUsername
  * - find (findById, findByUsername)
  * - incrementCount
@@ -446,6 +455,16 @@ function removeUser(s, l) {
       break;
     }
   }
+}
+
+/* restore all users to active */
+function restoreUsers() {
+  // if user is not in list, add
+  for (var i in channelUserNamesAll) {
+    if (!findById(channelUserNamesAll[i].id, channelUserNamesCurrent))
+      addUser(channelUserNamesAll[i], channelUserNamesCurrent);
+  }
+  return 'All users have been restored!\n' + printCurrent();
 }
 
 /* get a user's username */
@@ -532,6 +551,7 @@ function resetPRCount() {
   channelUserNamesAll.map(function(user) {
     return user.prCount = 0;
   })
+  return 'All PR counts have been reset!\n' + printCurrent();
 }
 
 
@@ -576,6 +596,7 @@ function contains(s, l) {
  * - printCurrent
  * - printAll
  * - helpMessage
+ * - say
  */
 
 /* return a string of all active users */
@@ -612,6 +633,14 @@ function helpMessage() {
     o += "_Set all users to active_\t\t`@" + botName + " reset`\n";
     o += "_Restart_\t\t`@" + botName + " restart`";
   return o;
+}
+
+/* wrapper for slack's bot.say */
+function say(msg, bot) {
+  bot.say({
+    text: msg,
+    channel: channelId
+  })
 }
 
 
