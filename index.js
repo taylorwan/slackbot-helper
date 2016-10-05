@@ -320,11 +320,32 @@ controller.on('direct_mention',function(bot, message) {
   /* remove an user from active duty */
   else if (command && links.length > 0 && command === 'remove') {
 
-    var name = stripUser(links[0]);
-    var user = find(name, channelUserNamesCurrent);
+    var name       = stripUser(links[0]);
+        user       = find(name, channelUserNamesCurrent),
+        hasTimeOut = links[1] === 'for';
+
+    // add back after a period of time
+    if (user && hasTimeOut) {
+
+      // invalid args
+      if (!validate(links.slice(2))) {
+        bot.reply(message, invalidArgsError());
+        return;
+      }
+invalidTimeArgsError
+      // remove
+      removeUser(user.id, channelUserNamesCurrent);
+
+      // set add back timeout
+      var interval = getInterval(links.slice(2));
+      setTimeout(function() {
+        addUser(user, channelUserNamesCurrent);
+      }, interval);
+      return;
+    }
 
     // remove
-    if (user) {
+    else if (user) {
       removeUser(user.id, channelUserNamesCurrent);
       bot.reply(message, 'Got it! I will not ask ' + getUsername(user) + ' to review code.\nYou can re-add any user by saying `@' + botName + ' add @<user>`');
       return;
@@ -588,6 +609,53 @@ function contains(s, l) {
   return false;
 }
 
+/* validates interval params and */
+function validateTime(s) {
+  var d = 0,
+      h = 0,
+      m = 0;
+
+  for (var i = 1; i < s.length/2; i++) {
+    // var is not a number
+    if (typeof s[i-1] !== 'number')
+      return invalidTimeArgsError();
+
+    // if param is valid, set 
+    if (isDay(s[i]) && d === 0)
+      d = s[i-1]
+    else if (isHour(s[i]) && h === 0)
+      h = s[i-1]
+    else if (isMinute(s[i]) && m === 0)
+      m = s[i-1]
+    else
+      return invalidTimeArgsError();
+  }
+
+  // success
+  return {days: d, hours: h, minutes: m};
+}
+
+function isDay(s) {
+  return s === 'days' || s === 'day' || s === 'd';
+}
+
+function isHour(s) {
+  return s === 'hours' || s === 'hour' || s === 'hr' || s === 'hrs' || s === 'h';
+}
+
+function isMinute(s) {
+  return s === 'minutes' || s === 'minute' || s === 'min' || s === 'mins' || s === 'm';
+}
+
+function getInterval(t) {
+  console.log("in getInterval", t);
+  // determine interval
+  var now = moment(),
+      interval = moment().add(t.days, 'days').add(t.hours, 'hours').add(t.mins, 'minutes');
+  return now - interval;
+}
+
+
 /**
  * GENERAL MESSAGING
  * - printCurrent
@@ -619,11 +687,13 @@ function printAll() {
 /* return a string with all bot capabilities */
 function helpMessage() {
   var o  = "Here are all the things I can do:\n";
+<<<<<<< 6da3d6353d18c4e28dfb210ba22a6877fef64a39
     o += "\n*Code Review*\n";
     o += "_Pick someone to review code_\t`@" + botName + " review <link>`\n";
     o += "\n*Manage Users*\n";
     o += "_Add an user_\t\t\t\t\t\t\t   `@" + botName + " add <username>`\n";
     o += "_Remove an user_\t\t\t\t\t\t `@" + botName + " remove <username>`\n";
+    o += "_Remove an user for an interval_\t\t`@" + botName + " remove <username> for [<#> day(s)][ <#> hour(s)][ <#> minute(s)]`\n";
     o += "\n*PR Counts*\n";
     o += "_Increase an user's PR count_\t   `@" + botName + " <username>++`\n";
     o += "_Decrease an user's PR count_\t `@" + botName + " <username>--`\n";
@@ -678,4 +748,8 @@ function noReviewersError() {
   return 'There are no active users who can review your code! :vince::confounded:\n' +
          'You can view all users in this channel by saying `@' + botName + ' ls -a` ' +
          'and add any user by saying `@' + botName + ' add @<user>`';
+}
+
+function invalidTimeArgsError() {
+  return 'Hmm, I didn\'t get that. Please make sure the time is in the format [# days] [# hours] [# minutes]';
 }
