@@ -409,6 +409,7 @@ controller.on('direct_mention',function(bot, message) {
 
 // reply to a direct message
 controller.on('direct_message',function(bot,message) {
+  messageContent = message.text;
   if (!messageContent) {
     bot.reply(message,'Hmm..I didn\'t catch that');
     return;
@@ -618,16 +619,21 @@ function printAll() {
 /* return a string with all bot capabilities */
 function helpMessage() {
   var o  = "Here are all the things I can do:\n";
-    o += "_Pick someone to review code_\t\t`@" + botName + " review <link>`\n";
-    o += "_Add an user_\t\t`@" + botName + " add <username>`\n";
-    o += "_Remove an user_\t\t`@" + botName + " remove <username>`\n";
-    o += "_Increase an user's PR count_\t\t`@" + botName + " <username>++`\n";
-    o += "_Decrease an user's PR count_\t\t`@" + botName + " <username>--`\n";
-    o += "_Reset all PR counts_\t\t`@" + botName + " reset pr`\n";
-    o += "_View all active reviewers_\t\t`@" + botName + " ls`\n";
-    o += "_View all users in this channel_\t\t`@" + botName + " ls -a`\n";
-    o += "_Set all users to active_\t\t`@" + botName + " reset`\n";
-    o += "_Restart_\t\t`@" + botName + " restart`";
+    o += "\n*Code Review*\n";
+    o += "_Pick someone to review code_\t`@" + botName + " review <link>`\n";
+    o += "\n*Manage Users*\n";
+    o += "_Add an user_\t\t  `@" + botName + " add <username>`\n";
+    o += "_Remove an user_\t`@" + botName + " remove <username>`\n";
+    o += "\n*PR Counts*\n";
+    o += "_Increase an user's PR count_\t  `@" + botName + " <username>++`\n";
+    o += "_Decrease an user's PR count_\t `@" + botName + " <username>--`\n";
+    o += "_Reset all PR counts_\t\t\t\t\t`@" + botName + " reset pr`\n";
+    o += "\n*Print Current Status*\n";
+    o += "_View all active reviewers_\t\t\t`@" + botName + " ls`\n";
+    o += "_View all users in this channel_\t `@" + botName + " ls -a`\n";
+    o += "\n*Reset*\n";
+    o += "_Set all users to active_\t`@" + botName + " reset`\n";
+    o += "_Restart_\t\t\t\t\t\t  `@" + botName + " restart`\n";
     o += "\nI restore all users every weekday morning at 9am, and ";
     o += "reset PR counts to 0 every Monday at 9am";
   return o;
