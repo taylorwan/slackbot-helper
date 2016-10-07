@@ -353,8 +353,10 @@ controller.on('direct_mention',function(bot, message) {
 
       // set add back timeout
       setTimeout(function() {
-        addUser(user, channelUserNamesCurrent);
-        say('It\'s been ' + timeInEnglish + '! ' + getUsername(user) + " is now back in the mix :clapping:", bot);
+        if (!find(user, channelUserNamesCurrent)) {
+          addUser(user, channelUserNamesCurrent);
+          say('It\'s been ' + timeInEnglish + '! ' + getUsername(user) + " is now back in the mix :clapping:", bot);
+        }
       }, interval);
       return;
     }
@@ -632,13 +634,13 @@ function validateTime(input) {
       s = 0;
 
   for (var i = 0; i < input.length; i+=2) {
-    var val = parseInt(input[i]);
-
     // var is not a number
-    if (typeof val === 'NaN') {
+    if (val === 'NaN') {
       console.log("not a number")
       return invalidTimeArgsError();
     }
+
+    var val = parseInt(input[i]);
 
     // if param is valid, set 
     if (isWeek(input[i+1]))
