@@ -327,19 +327,34 @@ controller.on('direct_mention',function(bot, message) {
     // add back after a period of time
     if (user && hasTimeOut) {
 
+      // validate and parse args
+      var parsedTime = validateTime(links.slice(2));
+
       // invalid args
-      if (!validate(links.slice(2))) {
-        bot.reply(message, invalidArgsError());
+      if (!(typeof parsedTime === 'object')) {
+        bot.reply(message, invalidTimeArgsError());
         return;
       }
-invalidTimeArgsError
+
+      // parse interval
+      var interval      = getInterval(parsedTime),
+          timeInEnglish = '';
+
+      for (var val in parsedTime) {
+        if (parsedTime[val] > 0)
+          timeInEnglish += parsedTime[val] + ' ' + val;
+        if (parsedTime.length > 1)
+          parsedTime += ' ';
+      }
+
       // remove
       removeUser(user.id, channelUserNamesCurrent);
+      bot.reply(message, 'I\'ve removed ' + getUsername(user) + ' from active duty for the next ' + timeInEnglish + '! I\'ll let the team know when they return.');
 
       // set add back timeout
-      var interval = getInterval(links.slice(2));
       setTimeout(function() {
         addUser(user, channelUserNamesCurrent);
+        say('It\'s been ' + timeInEnglish + '! ' + getUsername(user) + " is now back in the mix :clapping:", bot);
       }, interval);
       return;
     }
@@ -610,29 +625,43 @@ function contains(s, l) {
 }
 
 /* validates interval params and */
-function validateTime(s) {
+function validateTime(input) {
   var d = 0,
       h = 0,
-      m = 0;
+      m = 0,
+      s = 0;
 
-  for (var i = 1; i < s.length/2; i++) {
+  console.log("in validatetime with args", input);
+  console.log("going through with s.length/2 as", input.length/2);
+
+  for (var i = 0; i < input.length; i+=2) {
+    console.log("i is", i);
+    var val = parseInt(input[i]);
+
+    console.log("val is", val);
+    console.log("typeof val", typeof val);
+
     // var is not a number
-    if (typeof s[i-1] !== 'number')
+    if (typeof val === 'NaN') {
+      console.log("not a number")
       return invalidTimeArgsError();
+    }
 
     // if param is valid, set 
-    if (isDay(s[i]) && d === 0)
-      d = s[i-1]
-    else if (isHour(s[i]) && h === 0)
-      h = s[i-1]
-    else if (isMinute(s[i]) && m === 0)
-      m = s[i-1]
+    if (isDay(input[i+1]))
+      d = val
+    else if (isHour(input[i+1]))
+      h = val
+    else if (isMinute(input[i+1]))
+      m = val
+    else if (isSecond(input[i+1]))
+      s = val
     else
       return invalidTimeArgsError();
   }
 
   // success
-  return {days: d, hours: h, minutes: m};
+  return {days: d, hours: h, minutes: m, seconds: s};
 }
 
 function isDay(s) {
@@ -640,19 +669,29 @@ function isDay(s) {
 }
 
 function isHour(s) {
-  return s === 'hours' || s === 'hour' || s === 'hr' || s === 'hrs' || s === 'h';
+  return s === 'hours' || s === 'hour' || s === 'hrs' || s === 'hr' || s === 'h';
 }
 
 function isMinute(s) {
-  return s === 'minutes' || s === 'minute' || s === 'min' || s === 'mins' || s === 'm';
+  return s === 'minutes' || s === 'minute' || s === 'mins' || s === 'min' || s === 'm';
+}
+
+function isSecond(s) {
+  return s === 'seconds' || s === 'second' || s === 'secs' || s === 'sec' || s === 's';
 }
 
 function getInterval(t) {
-  console.log("in getInterval", t);
+  // console.log("days", t.days);
+  // console.log("hours", t.hours);
+  // console.log("minutes", t.minutes);
+  // console.log("days", t.days);
   // determine interval
   var now = moment(),
-      interval = moment().add(t.days, 'days').add(t.hours, 'hours').add(t.mins, 'minutes');
-  return now - interval;
+      interval = moment().add(t.days, 'day').add(t.hours, 'hour').add(t.minutes, 'minute').add(t.seconds, 'second');
+
+  console.log(now.format('dddd, MMMM Do YYYY, h:mm:ss a'));
+  console.log(interval.format('dddd, MMMM Do YYYY, h:mm:ss a'));
+  return interval - now;
 }
 
 
@@ -687,13 +726,12 @@ function printAll() {
 /* return a string with all bot capabilities */
 function helpMessage() {
   var o  = "Here are all the things I can do:\n";
-<<<<<<< 6da3d6353d18c4e28dfb210ba22a6877fef64a39
     o += "\n*Code Review*\n";
     o += "_Pick someone to review code_\t`@" + botName + " review <link>`\n";
     o += "\n*Manage Users*\n";
     o += "_Add an user_\t\t\t\t\t\t\t   `@" + botName + " add <username>`\n";
     o += "_Remove an user_\t\t\t\t\t\t `@" + botName + " remove <username>`\n";
-    o += "_Remove an user for an interval_\t\t`@" + botName + " remove <username> for [<#> day(s)][ <#> hour(s)][ <#> minute(s)]`\n";
+    o += "_Remove an user for an interval_  `... for [<#> day(s)][ <#> hour(s)][ <#> minute(s)]`\n";
     o += "\n*PR Counts*\n";
     o += "_Increase an user's PR count_\t   `@" + botName + " <username>++`\n";
     o += "_Decrease an user's PR count_\t `@" + botName + " <username>--`\n";
