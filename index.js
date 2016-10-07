@@ -218,12 +218,12 @@ controller.on('direct_mention',function(bot, message) {
   }
 
   /* print all users */
-  else if (command && contains(messageContent, ['ls -a'])) {
+  else if (command && contains(messageContent, ['ls -a', 'ls all', 'list -a', 'list all'])) {
     bot.reply(message, printAll());
   }
 
   /* print all current users */
-  else if (command && command === 'ls') {
+  else if (command && contains(command, ['ls', 'list'])) {
     bot.reply(message, printCurrent());
   }
 
@@ -631,15 +631,8 @@ function validateTime(input) {
       m = 0,
       s = 0;
 
-  console.log("in validatetime with args", input);
-  console.log("going through with s.length/2 as", input.length/2);
-
   for (var i = 0; i < input.length; i+=2) {
-    console.log("i is", i);
     var val = parseInt(input[i]);
-
-    console.log("val is", val);
-    console.log("typeof val", typeof val);
 
     // var is not a number
     if (typeof val === 'NaN') {
@@ -648,14 +641,18 @@ function validateTime(input) {
     }
 
     // if param is valid, set 
-    if (isDay(input[i+1]))
-      d = val
+    if (isWeek(input[i+1]))
+      d += 7*val;
+    else if (isDay(input[i+1]))
+      d += val;
     else if (isHour(input[i+1]))
-      h = val
+      h += val;
     else if (isMinute(input[i+1]))
-      m = val
+      m += val;
     else if (isSecond(input[i+1]))
-      s = val
+      s += val;
+    else if (isYear(input[i+1]) || isMonth(input[i+1]))
+      return outOfBoundsTimeArgsError();
     else
       return invalidTimeArgsError();
   }
@@ -664,33 +661,35 @@ function validateTime(input) {
   return {days: d, hours: h, minutes: m, seconds: s};
 }
 
+/* string matches keyword for week */
+function isWeek(s) {
+  return s === 'weeks' || s === 'week' || s === 'w';
+}
+
+/* string matches keyword for day */
 function isDay(s) {
   return s === 'days' || s === 'day' || s === 'd';
 }
 
+/* string matches keyword for hour */
 function isHour(s) {
   return s === 'hours' || s === 'hour' || s === 'hrs' || s === 'hr' || s === 'h';
 }
 
+/* string matches keyword for minute */
 function isMinute(s) {
   return s === 'minutes' || s === 'minute' || s === 'mins' || s === 'min' || s === 'm';
 }
 
+/* string matches keyword for second */
 function isSecond(s) {
   return s === 'seconds' || s === 'second' || s === 'secs' || s === 'sec' || s === 's';
 }
 
+/* determine interval */
 function getInterval(t) {
-  // console.log("days", t.days);
-  // console.log("hours", t.hours);
-  // console.log("minutes", t.minutes);
-  // console.log("days", t.days);
-  // determine interval
   var now = moment(),
       interval = moment().add(t.days, 'day').add(t.hours, 'hour').add(t.minutes, 'minute').add(t.seconds, 'second');
-
-  console.log(now.format('dddd, MMMM Do YYYY, h:mm:ss a'));
-  console.log(interval.format('dddd, MMMM Do YYYY, h:mm:ss a'));
   return interval - now;
 }
 
@@ -731,7 +730,7 @@ function helpMessage() {
     o += "\n*Manage Users*\n";
     o += "_Add an user_\t\t\t\t\t\t\t   `@" + botName + " add <username>`\n";
     o += "_Remove an user_\t\t\t\t\t\t `@" + botName + " remove <username>`\n";
-    o += "_Remove an user for an interval_  `... for [<#> day(s)][ <#> hour(s)][ <#> minute(s)]`\n";
+    o += "_Remove an user for an interval_  `... for [<#> week/day/hour/minute(s)]*`\n";
     o += "\n*PR Counts*\n";
     o += "_Increase an user's PR count_\t   `@" + botName + " <username>++`\n";
     o += "_Decrease an user's PR count_\t `@" + botName + " <username>--`\n";
@@ -791,3 +790,8 @@ function noReviewersError() {
 function invalidTimeArgsError() {
   return 'Hmm, I didn\'t get that. Please make sure the time is in the format [# days] [# hours] [# minutes]';
 }
+
+function outOfBoundsTimeArgsError() {
+  return 'Do you really want to remove someone for that long? Try entering a time in terms of weeks, days, hours, and minutes';
+}
+
