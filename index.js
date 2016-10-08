@@ -61,20 +61,15 @@ function resetController(bot) {
   }, timeToFire - now);
 }
 
-/* daily reset functions */
+/* daily functions */
 function dailyReset() {
-  // restore all users
-  return 'Good Morning. ' + restoreUsers();
+  return 'Good Morning!';
 }
 
-/* weekly reset functions */
+/* weekly functions */
 function weeklyReset() {
-  // restore all users
-  restoreUsers();
-  // reset PR count
   resetPRCount();
-
-  return 'Happy Monday! All users and PR counts have been reset\n' + printCurrent();
+  return 'Happy Monday! All PR counts have been reset\n' + printCurrent();
 }
 
 /* boot up */
@@ -824,6 +819,10 @@ function helpMessage() {
 
 /* wrapper for slack's bot.say */
 function say(msg, bot) {
+  // if there's no message, return
+  if (!msg)
+    return;
+
   bot.say({
     text: msg,
     channel: channelId
