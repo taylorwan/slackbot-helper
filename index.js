@@ -226,7 +226,7 @@ controller.on('direct_mention',function(bot, message) {
   }
 
   /* print all current users */
-  else if (command && contains(command, ['ls', 'list'])) {
+  else if (command && command === 'ls' || command === 'list') {
     bot.reply(message, printCurrent());
   }
 
@@ -794,7 +794,7 @@ function printAll() {
 
 /* return a string saying I don't understand */
 function IDontUnderstand() {
-  return 'Sorry, I didn\'t get that. I\'m a bot, so sometimes' +
+  return 'Sorry, I didn\'t get that. I\'m a bot, so sometimes ' +
          'I have trouble parsing words! :see_no_evil:\n' +
          'To see a list of everything I can do, say `help`';
 }
