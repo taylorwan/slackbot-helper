@@ -189,7 +189,8 @@ controller.on('direct_mention',function(bot, message) {
   /* restart */
   else if (command && command === 'restart') {
     requestRestart = true;
-    bot.reply(message, 'Are you sure you\'d like to restart? All user data will be reset (@' + botName + ' yes/no)');
+    bot.reply(message, 'Are you sure you\'d like to restart? '
+      + 'All user data will be reset (@' + botName + ' yes/no)');
   }
 
   /* verify restart: yes */
@@ -277,7 +278,9 @@ controller.on('direct_mention',function(bot, message) {
     var selectedUser = channelUserNames[randomnumber];
 
     selectedUser.prCount++;
-    bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: ' + selectedUser.prCount + ') please review ' + requestUserNameString + ' code: ' + concatLinks(links));
+    bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: '
+      + selectedUser.prCount + ') please review ' + requestUserNameString
+      + ' code: ' + concatLinks(links));
 
     // update
     prev = {};
@@ -300,7 +303,8 @@ controller.on('direct_mention',function(bot, message) {
 
     // decrease previous user prCount and relieve them of reviewing duty
     prev.selectedUser.prCount--;
-    bot.reply(message, 'I messed up. Sorry, ' + getUsername(prev.selectedUser) + '! :see_no_evil: I\'ve temporarily relieved you from code review duties.');
+    bot.reply(message, 'I messed up. Sorry, ' + getUsername(prev.selectedUser)
+      + '! :see_no_evil: I\'ve temporarily relieved you from code review duties.');
 
     // no other reviewers
     if (!channelUserNames.length) {
@@ -313,7 +317,9 @@ controller.on('direct_mention',function(bot, message) {
     var randomnumber = Math.floor(Math.random() * (channelUserNames.length));
     var selectedUser = channelUserNames[randomnumber];
     selectedUser.prCount++;
-    bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: ' + selectedUser.prCount + ') please review ' + prev.requestUserNameString + ' code: ' + concatLinks(prev.links));
+    bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: '
+      + selectedUser.prCount + ') please review ' + prev.requestUserNameString
+      + ' code: ' + concatLinks(prev.links));
 
     // update prev
     prev.selectedUser = selectedUser;
@@ -402,13 +408,16 @@ controller.on('direct_mention',function(bot, message) {
 
       // remove
       removeUser(user.id, channelUserNamesCurrent);
-      bot.reply(message, 'I\'ve removed ' + getUsername(user) + ' from active duty for the next ' + theNextTimeInEnglish + '! I\'ll let the team know when they return.');
+      bot.reply(message, 'I\'ve removed ' + getUsername(user)
+        + ' from active duty for the next ' + theNextTimeInEnglish
+        + '! I\'ll let the team know when they return.');
 
       // set add back timeout
       setTimeout(function() {
         if (!find(user, channelUserNamesCurrent)) {
           addUser(user, channelUserNamesCurrent);
-          say('It\'s been ' + timeInEnglish + '! ' + getUsername(user) + " is now back in the mix :clapping:", bot);
+          say('It\'s been ' + timeInEnglish + '! ' + getUsername(user)
+            + " is now back in the mix :clapping:", bot);
         }
       }, interval);
       return;
@@ -417,7 +426,9 @@ controller.on('direct_mention',function(bot, message) {
     // remove
     else if (user) {
       removeUser(user.id, channelUserNamesCurrent);
-      bot.reply(message, 'Got it! I will not ask ' + getUsername(user) + ' to review code.\nYou can re-add any user by saying `@' + botName + ' add @<user>`');
+      bot.reply(message, 'Got it! I will not ask ' + getUsername(user)
+        + ' to review code.\nYou can re-add any user by saying `@'
+        + botName + ' add @<user>`');
       return;
     }
 
@@ -446,13 +457,15 @@ controller.on('direct_mention',function(bot, message) {
 
     // user already active
     if (find(name, channelUserNamesCurrent)) {
-      bot.reply(message, userActiveError(user, 'You can say `@' + botName + ' ls` to view all active users'));
+      bot.reply(message, userActiveError(user, 'You can say `@' + botName
+        + ' ls` to view all active users'));
       return;
     }
 
     // add
     addUser(user, channelUserNamesCurrent);
-    bot.reply(message, 'Got it! My magic box will now include ' + getUsername(user) + ' when it picks someone to review code');
+    bot.reply(message, 'Got it! My magic box will now include ' + getUsername(user)
+      + ' when it picks someone to review code');
   }
 
   /* greetings */
@@ -479,12 +492,12 @@ controller.on('direct_mention',function(bot, message) {
     bot.reply(message, 'I didn\'t do anything yet!');
     bot.reply(message, 'Try `@' + botName + ' review <link>`');
   }
-  else if (contains(messageContent, ['stop', 'devolve', 'shut up', 'shush', 'ugh', 'be quiet', 'drop', 'kill', 'no', 'stupid', 'dumb', 'quit', 'bad'])) {
+  else if (contains(messageContent, ['stop', 'devolve', 'shut up', 'shush', 'ugh',
+    'be quiet', 'drop', 'kill', 'no', 'stupid', 'dumb', 'quit', 'bad'])) {
     bot.reply(message, ':white_frowning_face: I\'m trying my best!');
   }
   else {
-    bot.reply(message, 'Sorry, I didn\'t get that. I\'m a bot, so sometimes I have trouble parsing words! :see_no_evil:');
-    bot.reply(message, 'To see a list of everything I can do, say `help`');
+    bot.reply(message, IDontUnderstand());
   }
 
   return;
@@ -515,8 +528,7 @@ controller.on('direct_message',function(bot,message) {
   } else if (contains(messageContent, ['user', 'active user', 'current user'])) {
     bot.reply(message, printCurrent());
   } else {
-    bot.reply(message, 'Sorry, I didn\'t get that. I\'m a bot, so sometimes I have trouble parsing words!');
-    bot.reply(message, 'To see a list of everything I can do, say `help`');
+    bot.reply(message, IDontUnderstand());
   }
 });
 
@@ -679,7 +691,7 @@ function contains(s, l) {
   return false;
 }
 
-/* validates interval params and */
+/* validates interval params and returns an object with parsed values */
 function validateTime(input) {
   var d = 0,
       h = 0,
@@ -694,6 +706,7 @@ function validateTime(input) {
       return invalidTimeArgsError();
     }
 
+    // convert val from string to int
     val = parseInt(val);
 
     // if param is valid, set 
@@ -754,6 +767,7 @@ function getInterval(t) {
  * GENERAL MESSAGING
  * - printCurrent
  * - printAll
+ * - IDontUnderstand
  * - helpMessage
  * - say
  */
@@ -778,28 +792,34 @@ function printAll() {
   return o;
 }
 
+/* return a string saying I don't understand */
+function IDontUnderstand() {
+  return 'Sorry, I didn\'t get that. I\'m a bot, so sometimes' +
+         'I have trouble parsing words! :see_no_evil:\n' +
+         'To see a list of everything I can do, say `help`';
+}
+
 /* return a string with all bot capabilities */
 function helpMessage() {
-  var o  = "Here are all the things I can do:\n";
-    o += "\n*Code Review*\n";
-    o += "_Pick someone to review code_\t`@" + botName + " review <link>`\n";
-    o += "\n*Manage Users*\n";
-    o += "_Add an user_\t\t\t\t\t\t\t   `@" + botName + " add <username>`\n";
-    o += "_Remove an user_\t\t\t\t\t\t `@" + botName + " remove <username>`\n";
-    o += "_Remove an user for an interval_  `... for [<#> week/day/hour/minute(s)]*`\n";
-    o += "\n*PR Counts*\n";
-    o += "_Increase an user's PR count_\t   `@" + botName + " <username>++`\n";
-    o += "_Decrease an user's PR count_\t `@" + botName + " <username>--`\n";
-    o += "_Reset all PR counts_\t\t\t\t\t`@" + botName + " reset pr`\n";
-    o += "\n*Print Current Status*\n";
-    o += "_View all active reviewers_\t\t\t`@" + botName + " ls`\n";
-    o += "_View all users in this channel_\t `@" + botName + " ls -a`\n";
-    o += "\n*Reset*\n";
-    o += "_Set all users to active_\t\t\t\t`@" + botName + " reset`\n";
-    o += "_Restart_\t\t\t\t\t\t\t\t\t   `@" + botName + " restart`\n";
-    o += "\nI restore all users every weekday morning at 9am, and ";
-    o += "reset PR counts to 0 every Monday at 9am";
-  return o;
+  return "Here are all the things I can do:\n" +
+         "\n*Code Review*\n" +
+         "_Pick someone to review code_\t`@" + botName + " review <link>`\n" +
+         "\n*Manage Users*\n" +
+         "_Add an user_\t\t\t\t\t\t\t   `@" + botName + " add <username>`\n" +
+         "_Remove an user_\t\t\t\t\t\t `@" + botName + " remove <username>`\n" +
+         "_Remove an user for an interval_  `... for [<#> week/day/hour/minute(s)]*`\n" +
+         "\n*PR Counts*\n" +
+         "_Increase an user's PR count_\t   `@" + botName + " <username>++`\n" +
+         "_Decrease an user's PR count_\t `@" + botName + " <username>--`\n" +
+         "_Reset all PR counts_\t\t\t\t\t`@" + botName + " reset pr`\n" +
+         "\n*Print Current Status*\n" +
+         "_View all active reviewers_\t\t\t`@" + botName + " ls`\n" +
+         "_View all users in this channel_\t `@" + botName + " ls -a`\n" +
+         "\n*Reset*\n" +
+         "_Set all users to active_\t\t\t\t`@" + botName + " reset`\n" +
+         "_Restart_\t\t\t\t\t\t\t\t\t   `@" + botName + " restart`\n" +
+         "\nI restore all users every weekday morning at 9am, and " +
+         "reset PR counts to 0 every Monday at 9am";
 }
 
 /* wrapper for slack's bot.say */
@@ -819,7 +839,8 @@ function say(msg, bot) {
  */
 
 function userNotFoundError() {
-  return 'Hmm...I couldn\'t find a human by that name.\nTry `@' + botName + ' ls` to view all users in this channel'
+  return 'Hmm...I couldn\'t find a human by that name.\nTry `@' + botName +
+         ' ls` to view all users in this channel'
 }
 
 function userNotActiveError(user, message) {
@@ -844,10 +865,12 @@ function noReviewersError() {
 }
 
 function invalidTimeArgsError() {
-  return 'Hmm, I didn\'t get that. Please make sure the time is in the format [# days] [# hours] [# minutes]';
+  return 'Hmm, I didn\'t get that. Please make sure the time is in the format ' +
+         '[# days] [# hours] [# minutes]';
 }
 
 function outOfBoundsTimeArgsError() {
-  return 'Do you really want to remove someone for that long? Try entering a time in terms of weeks, days, hours, and minutes';
+  return 'Do you really want to remove someone for that long? Try entering a time ' +
+         'in terms of weeks, days, hours, and minutes';
 }
 
