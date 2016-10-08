@@ -61,20 +61,15 @@ function resetController(bot) {
   }, timeToFire - now);
 }
 
-/* daily reset functions */
+/* daily functions */
 function dailyReset() {
-  // restore all users
-  return 'Good Morning. ' + restoreUsers();
+  return 'Good Morning!';
 }
 
-/* weekly reset functions */
+/* weekly functions */
 function weeklyReset() {
-  // restore all users
-  restoreUsers();
-  // reset PR count
   resetPRCount();
-
-  return 'Happy Monday! All users and PR counts have been reset\n' + printCurrent();
+  return 'Happy Monday! All PR counts have been reset\n' + printCurrent();
 }
 
 /* boot up */
@@ -189,13 +184,16 @@ controller.on('direct_mention',function(bot, message) {
   /* restart */
   else if (command && command === 'restart') {
     requestRestart = true;
-    bot.reply(message, 'Are you sure you\'d like to restart? All user data will be reset (@' + botName + ' yes/no)');
+    bot.reply(message, 'Are you sure you\'d like to restart? '
+      + 'All user data will be reset (@' + botName + ' yes/no)');
   }
 
   /* verify restart: yes */
   else if (command && command === 'yes' && requestRestart) {
     requestRestart = false;
     bot.reply(message, 'Restarting...see ya in a sec!');
+
+    // 1 second timeout to make it seem like the bot is taking a second to restart
     setTimeout( function() {
       boot(bot);
     }, 1000);
@@ -218,12 +216,12 @@ controller.on('direct_mention',function(bot, message) {
   }
 
   /* print all users */
-  else if (command && contains(messageContent, ['ls -a'])) {
+  else if (command && contains(messageContent, ['ls -a', 'ls all', 'list -a', 'list all'])) {
     bot.reply(message, printAll());
   }
 
   /* print all current users */
-  else if (command && command === 'ls') {
+  else if (command && command === 'ls' || command === 'list') {
     bot.reply(message, printCurrent());
   }
 
@@ -275,7 +273,9 @@ controller.on('direct_mention',function(bot, message) {
     var selectedUser = channelUserNames[randomnumber];
 
     selectedUser.prCount++;
-    bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: ' + selectedUser.prCount + ') please review ' + requestUserNameString + ' code: ' + concatLinks(links));
+    bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: '
+      + selectedUser.prCount + ') please review ' + requestUserNameString
+      + ' code: ' + concatLinks(links));
 
     // update
     prev = {};
@@ -298,7 +298,8 @@ controller.on('direct_mention',function(bot, message) {
 
     // decrease previous user prCount and relieve them of reviewing duty
     prev.selectedUser.prCount--;
-    bot.reply(message, 'I messed up. Sorry, ' + getUsername(prev.selectedUser) + '! :see_no_evil: I\'ve temporarily relieved you from code review duties.');
+    bot.reply(message, 'I messed up. Sorry, ' + getUsername(prev.selectedUser)
+      + '! :see_no_evil: I\'ve temporarily relieved you from code review duties.');
 
     // no other reviewers
     if (!channelUserNames.length) {
@@ -311,7 +312,9 @@ controller.on('direct_mention',function(bot, message) {
     var randomnumber = Math.floor(Math.random() * (channelUserNames.length));
     var selectedUser = channelUserNames[randomnumber];
     selectedUser.prCount++;
-    bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: ' + selectedUser.prCount + ') please review ' + prev.requestUserNameString + ' code: ' + concatLinks(prev.links));
+    bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: '
+      + selectedUser.prCount + ') please review ' + prev.requestUserNameString
+      + ' code: ' + concatLinks(prev.links));
 
     // update prev
     prev.selectedUser = selectedUser;
@@ -337,24 +340,80 @@ controller.on('direct_mention',function(bot, message) {
       }
 
       // parse interval
-      var interval      = getInterval(parsedTime),
-          timeInEnglish = '';
+      var interval             = getInterval(parsedTime),
+          dateKeysCount        = Object.keys(parsedTime).length,
+          theNextTimeInEnglish = '',
+          timeInEnglish        = ''
+          count                = 0;
 
-      for (var val in parsedTime) {
-        if (parsedTime[val] > 0)
-          timeInEnglish += parsedTime[val] + ' ' + val;
-        if (parsedTime.length > 1)
-          parsedTime += ' ';
+      // build semantic string representation of input
+      for (var unit in parsedTime) {
+        var val = parsedTime[unit];
+
+        // if value is 0, decrement total count
+        if (val === 0) {
+          dateKeysCount--;
+          continue;
+        }
+
+        /* multiple arguments */
+        // if there's already something in the string, add space before
+        if (timeInEnglish.length > 0) {
+          timeInEnglish        += ' ';
+          theNextTimeInEnglish += ' ';
+
+          // if this is the last element we're adding, add keyword 'and'
+          if (count === dateKeysCount-1) {
+            timeInEnglish        += 'and '
+            theNextTimeInEnglish += 'and ';
+          }
+        }
+
+        // add to string:
+        // if plural (i.e. 2 seconds)
+        if (val > 1) {
+          theNextTimeInEnglish += val + ' ' + unit + 's';
+          timeInEnglish        += val + ' ' + unit + 's';
+        }
+
+        // first item in the list is singular
+        else if (count === 0) {
+          theNextTimeInEnglish += unit;
+          if (unit === 'hour')
+            timeInEnglish += 'an ' + unit;
+          else
+            timeInEnglish += 'a ' + unit;
+        }
+
+        // all other singular cases:
+        // singular (i.e. an hour)
+        else if (unit === 'hour') {
+          theNextTimeInEnglish += 'an ' + unit;
+          timeInEnglish        += 'an ' + unit;
+        }
+        // singular (i.e. a second)
+        else {
+          theNextTimeInEnglish += 'a ' + unit;
+          timeInEnglish        += 'a ' + unit;
+        }
+
+        // increment count
+        count++;
       }
 
       // remove
       removeUser(user.id, channelUserNamesCurrent);
-      bot.reply(message, 'I\'ve removed ' + getUsername(user) + ' from active duty for the next ' + timeInEnglish + '! I\'ll let the team know when they return.');
+      bot.reply(message, 'I\'ve removed ' + getUsername(user)
+        + ' from active duty for the next ' + theNextTimeInEnglish
+        + '! I\'ll let the team know when they return.');
 
       // set add back timeout
       setTimeout(function() {
-        addUser(user, channelUserNamesCurrent);
-        say('It\'s been ' + timeInEnglish + '! ' + getUsername(user) + " is now back in the mix :clapping:", bot);
+        if (!find(user, channelUserNamesCurrent)) {
+          addUser(user, channelUserNamesCurrent);
+          say('It\'s been ' + timeInEnglish + '! ' + getUsername(user)
+            + " is now back in the mix :clapping:", bot);
+        }
       }, interval);
       return;
     }
@@ -362,7 +421,9 @@ controller.on('direct_mention',function(bot, message) {
     // remove
     else if (user) {
       removeUser(user.id, channelUserNamesCurrent);
-      bot.reply(message, 'Got it! I will not ask ' + getUsername(user) + ' to review code.\nYou can re-add any user by saying `@' + botName + ' add @<user>`');
+      bot.reply(message, 'Got it! I will not ask ' + getUsername(user)
+        + ' to review code.\nYou can re-add any user by saying `@'
+        + botName + ' add @<user>`');
       return;
     }
 
@@ -391,13 +452,15 @@ controller.on('direct_mention',function(bot, message) {
 
     // user already active
     if (find(name, channelUserNamesCurrent)) {
-      bot.reply(message, userActiveError(user, 'You can say `@' + botName + ' ls` to view all active users'));
+      bot.reply(message, userActiveError(user, 'You can say `@' + botName
+        + ' ls` to view all active users'));
       return;
     }
 
     // add
     addUser(user, channelUserNamesCurrent);
-    bot.reply(message, 'Got it! My magic box will now include ' + getUsername(user) + ' when it picks someone to review code');
+    bot.reply(message, 'Got it! My magic box will now include ' + getUsername(user)
+      + ' when it picks someone to review code');
   }
 
   /* greetings */
@@ -424,12 +487,12 @@ controller.on('direct_mention',function(bot, message) {
     bot.reply(message, 'I didn\'t do anything yet!');
     bot.reply(message, 'Try `@' + botName + ' review <link>`');
   }
-  else if (contains(messageContent, ['stop', 'devolve', 'shut up', 'shush', 'ugh', 'be quiet', 'drop', 'kill', 'no', 'stupid', 'dumb', 'quit', 'bad'])) {
+  else if (contains(messageContent, ['stop', 'devolve', 'shut up', 'shush', 'ugh',
+    'be quiet', 'drop', 'kill', 'no', 'stupid', 'dumb', 'quit', 'bad'])) {
     bot.reply(message, ':white_frowning_face: I\'m trying my best!');
   }
   else {
-    bot.reply(message, 'Sorry, I didn\'t get that. I\'m a bot, so sometimes I have trouble parsing words! :see_no_evil:');
-    bot.reply(message, 'To see a list of everything I can do, say `help`');
+    bot.reply(message, IDontUnderstand());
   }
 
   return;
@@ -460,8 +523,7 @@ controller.on('direct_message',function(bot,message) {
   } else if (contains(messageContent, ['user', 'active user', 'current user'])) {
     bot.reply(message, printCurrent());
   } else {
-    bot.reply(message, 'Sorry, I didn\'t get that. I\'m a bot, so sometimes I have trouble parsing words!');
-    bot.reply(message, 'To see a list of everything I can do, say `help`');
+    bot.reply(message, IDontUnderstand());
   }
 });
 
@@ -624,73 +686,74 @@ function contains(s, l) {
   return false;
 }
 
-/* validates interval params and */
+/* validates interval params and returns an object with parsed values */
 function validateTime(input) {
   var d = 0,
       h = 0,
       m = 0,
       s = 0;
 
-  console.log("in validatetime with args", input);
-  console.log("going through with s.length/2 as", input.length/2);
-
   for (var i = 0; i < input.length; i+=2) {
-    console.log("i is", i);
-    var val = parseInt(input[i]);
-
-    console.log("val is", val);
-    console.log("typeof val", typeof val);
+    var val = input[i].match(/\d+/);
 
     // var is not a number
-    if (typeof val === 'NaN') {
-      console.log("not a number")
+    if (!val) {
       return invalidTimeArgsError();
     }
 
+    // convert val from string to int
+    val = parseInt(val);
+
     // if param is valid, set 
-    if (isDay(input[i+1]))
-      d = val
+    if (isWeek(input[i+1]))
+      d += 7*val;
+    else if (isDay(input[i+1]))
+      d += val;
     else if (isHour(input[i+1]))
-      h = val
+      h += val;
     else if (isMinute(input[i+1]))
-      m = val
+      m += val;
     else if (isSecond(input[i+1]))
-      s = val
+      s += val;
+    else if (isYear(input[i+1]) || isMonth(input[i+1]))
+      return outOfBoundsTimeArgsError();
     else
       return invalidTimeArgsError();
   }
 
   // success
-  return {days: d, hours: h, minutes: m, seconds: s};
+  return {day: d, hour: h, minute: m, second: s};
 }
 
+/* string matches keyword for week */
+function isWeek(s) {
+  return s === 'weeks' || s === 'week' || s === 'w';
+}
+
+/* string matches keyword for day */
 function isDay(s) {
   return s === 'days' || s === 'day' || s === 'd';
 }
 
+/* string matches keyword for hour */
 function isHour(s) {
   return s === 'hours' || s === 'hour' || s === 'hrs' || s === 'hr' || s === 'h';
 }
 
+/* string matches keyword for minute */
 function isMinute(s) {
   return s === 'minutes' || s === 'minute' || s === 'mins' || s === 'min' || s === 'm';
 }
 
+/* string matches keyword for second */
 function isSecond(s) {
   return s === 'seconds' || s === 'second' || s === 'secs' || s === 'sec' || s === 's';
 }
 
+/* determine interval */
 function getInterval(t) {
-  // console.log("days", t.days);
-  // console.log("hours", t.hours);
-  // console.log("minutes", t.minutes);
-  // console.log("days", t.days);
-  // determine interval
   var now = moment(),
-      interval = moment().add(t.days, 'day').add(t.hours, 'hour').add(t.minutes, 'minute').add(t.seconds, 'second');
-
-  console.log(now.format('dddd, MMMM Do YYYY, h:mm:ss a'));
-  console.log(interval.format('dddd, MMMM Do YYYY, h:mm:ss a'));
+      interval = moment().add(t.day, 'day').add(t.hour, 'hour').add(t.minute, 'minute').add(t.second, 'second');
   return interval - now;
 }
 
@@ -699,6 +762,7 @@ function getInterval(t) {
  * GENERAL MESSAGING
  * - printCurrent
  * - printAll
+ * - IDontUnderstand
  * - helpMessage
  * - say
  */
@@ -723,32 +787,42 @@ function printAll() {
   return o;
 }
 
+/* return a string saying I don't understand */
+function IDontUnderstand() {
+  return 'Sorry, I didn\'t get that. I\'m a bot, so sometimes ' +
+         'I have trouble parsing words! :see_no_evil:\n' +
+         'To see a list of everything I can do, say `help`';
+}
+
 /* return a string with all bot capabilities */
 function helpMessage() {
-  var o  = "Here are all the things I can do:\n";
-    o += "\n*Code Review*\n";
-    o += "_Pick someone to review code_\t`@" + botName + " review <link>`\n";
-    o += "\n*Manage Users*\n";
-    o += "_Add an user_\t\t\t\t\t\t\t   `@" + botName + " add <username>`\n";
-    o += "_Remove an user_\t\t\t\t\t\t `@" + botName + " remove <username>`\n";
-    o += "_Remove an user for an interval_  `... for [<#> day(s)][ <#> hour(s)][ <#> minute(s)]`\n";
-    o += "\n*PR Counts*\n";
-    o += "_Increase an user's PR count_\t   `@" + botName + " <username>++`\n";
-    o += "_Decrease an user's PR count_\t `@" + botName + " <username>--`\n";
-    o += "_Reset all PR counts_\t\t\t\t\t`@" + botName + " reset pr`\n";
-    o += "\n*Print Current Status*\n";
-    o += "_View all active reviewers_\t\t\t`@" + botName + " ls`\n";
-    o += "_View all users in this channel_\t `@" + botName + " ls -a`\n";
-    o += "\n*Reset*\n";
-    o += "_Set all users to active_\t\t\t\t`@" + botName + " reset`\n";
-    o += "_Restart_\t\t\t\t\t\t\t\t\t   `@" + botName + " restart`\n";
-    o += "\nI restore all users every weekday morning at 9am, and ";
-    o += "reset PR counts to 0 every Monday at 9am";
-  return o;
+  return "Here are all the things I can do:\n" +
+         "\n*Code Review*\n" +
+         "_Pick someone to review code_\t`@" + botName + " review <link>`\n" +
+         "\n*Manage Users*\n" +
+         "_Add an user_\t\t\t\t\t\t\t   `@" + botName + " add <username>`\n" +
+         "_Remove an user_\t\t\t\t\t\t `@" + botName + " remove <username>`\n" +
+         "_Remove an user for an interval_  `... for [<#> week/day/hour/minute(s)]*`\n" +
+         "\n*PR Counts*\n" +
+         "_Increase an user's PR count_\t   `@" + botName + " <username>++`\n" +
+         "_Decrease an user's PR count_\t `@" + botName + " <username>--`\n" +
+         "_Reset all PR counts_\t\t\t\t\t`@" + botName + " reset pr`\n" +
+         "\n*Print Current Status*\n" +
+         "_View all active reviewers_\t\t\t`@" + botName + " ls`\n" +
+         "_View all users in this channel_\t `@" + botName + " ls -a`\n" +
+         "\n*Reset*\n" +
+         "_Set all users to active_\t\t\t\t`@" + botName + " reset`\n" +
+         "_Restart_\t\t\t\t\t\t\t\t\t   `@" + botName + " restart`\n" +
+         "\nI restore all users every weekday morning at 9am, and " +
+         "reset PR counts to 0 every Monday at 9am";
 }
 
 /* wrapper for slack's bot.say */
 function say(msg, bot) {
+  // if there's no message, return
+  if (!msg)
+    return;
+
   bot.say({
     text: msg,
     channel: channelId
@@ -764,7 +838,8 @@ function say(msg, bot) {
  */
 
 function userNotFoundError() {
-  return 'Hmm...I couldn\'t find a human by that name.\nTry `@' + botName + ' ls` to view all users in this channel'
+  return 'Hmm...I couldn\'t find a human by that name.\nTry `@' + botName +
+         ' ls` to view all users in this channel'
 }
 
 function userNotActiveError(user, message) {
@@ -789,5 +864,12 @@ function noReviewersError() {
 }
 
 function invalidTimeArgsError() {
-  return 'Hmm, I didn\'t get that. Please make sure the time is in the format [# days] [# hours] [# minutes]';
+  return 'Hmm, I didn\'t get that. Please make sure the time is in the format ' +
+         '[# days] [# hours] [# minutes]';
 }
+
+function outOfBoundsTimeArgsError() {
+  return 'Do you really want to remove someone for that long? Try entering a time ' +
+         'in terms of weeks, days, hours, and minutes';
+}
+
