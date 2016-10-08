@@ -196,6 +196,8 @@ controller.on('direct_mention',function(bot, message) {
   else if (command && command === 'yes' && requestRestart) {
     requestRestart = false;
     bot.reply(message, 'Restarting...see ya in a sec!');
+
+    // 1 second timeout to make it seem like the bot is taking a second to restart
     setTimeout( function() {
       boot(bot);
     }, 1000);
@@ -337,19 +339,70 @@ controller.on('direct_mention',function(bot, message) {
       }
 
       // parse interval
-      var interval      = getInterval(parsedTime),
-          timeInEnglish = '';
+      var interval             = getInterval(parsedTime),
+          dateKeysCount        = Object.keys(parsedTime).length,
+          theNextTimeInEnglish = '',
+          timeInEnglish        = ''
+          count                = 0;
 
-      for (var val in parsedTime) {
-        if (parsedTime[val] > 0)
-          timeInEnglish += parsedTime[val] + ' ' + val;
-        if (parsedTime.length > 1)
-          parsedTime += ' ';
+      // build semantic string representation of input
+      for (var unit in parsedTime) {
+        var val = parsedTime[unit];
+
+        // if value is 0, decrement total count
+        if (val === 0) {
+          dateKeysCount--;
+          continue;
+        }
+
+        /* multiple arguments */
+        // if there's already something in the string, add space before
+        if (timeInEnglish.length > 0) {
+          timeInEnglish        += ' ';
+          theNextTimeInEnglish += ' ';
+
+          // if this is the last element we're adding, add keyword 'and'
+          if (count === dateKeysCount-1) {
+            timeInEnglish        += 'and '
+            theNextTimeInEnglish += 'and ';
+          }
+        }
+
+        // add to string:
+        // if plural (i.e. 2 seconds)
+        if (val > 1) {
+          theNextTimeInEnglish += val + ' ' + unit + 's';
+          timeInEnglish        += val + ' ' + unit + 's';
+        }
+
+        // first item in the list is singular
+        else if (count === 0) {
+          theNextTimeInEnglish += unit;
+          if (unit === 'hour')
+            timeInEnglish += 'an ' + unit;
+          else
+            timeInEnglish += 'a ' + unit;
+        }
+
+        // all other singular cases:
+        // singular (i.e. an hour)
+        else if (unit === 'hour') {
+          theNextTimeInEnglish += 'an ' + unit;
+          timeInEnglish        += 'an ' + unit;
+        }
+        // singular (i.e. a second)
+        else {
+          theNextTimeInEnglish += 'a ' + unit;
+          timeInEnglish        += 'a ' + unit;
+        }
+
+        // increment count
+        count++;
       }
 
       // remove
       removeUser(user.id, channelUserNamesCurrent);
-      bot.reply(message, 'I\'ve removed ' + getUsername(user) + ' from active duty for the next ' + timeInEnglish + '! I\'ll let the team know when they return.');
+      bot.reply(message, 'I\'ve removed ' + getUsername(user) + ' from active duty for the next ' + theNextTimeInEnglish + '! I\'ll let the team know when they return.');
 
       // set add back timeout
       setTimeout(function() {
@@ -634,13 +687,14 @@ function validateTime(input) {
       s = 0;
 
   for (var i = 0; i < input.length; i+=2) {
+    var val = input[i].match(/\d+/);
+
     // var is not a number
-    if (val === 'NaN') {
-      console.log("not a number")
+    if (!val) {
       return invalidTimeArgsError();
     }
 
-    var val = parseInt(input[i]);
+    val = parseInt(val);
 
     // if param is valid, set 
     if (isWeek(input[i+1]))
@@ -660,7 +714,7 @@ function validateTime(input) {
   }
 
   // success
-  return {days: d, hours: h, minutes: m, seconds: s};
+  return {day: d, hour: h, minute: m, second: s};
 }
 
 /* string matches keyword for week */
@@ -691,7 +745,7 @@ function isSecond(s) {
 /* determine interval */
 function getInterval(t) {
   var now = moment(),
-      interval = moment().add(t.days, 'day').add(t.hours, 'hour').add(t.minutes, 'minute').add(t.seconds, 'second');
+      interval = moment().add(t.day, 'day').add(t.hour, 'hour').add(t.minute, 'minute').add(t.second, 'second');
   return interval - now;
 }
 
