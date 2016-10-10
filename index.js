@@ -133,6 +133,9 @@ function boot(bot) {
         });
       });
 
+      // create a copy for current channel users
+      restoreUsers();
+
       // welcome!
       say('Hello! My name is ' + botName + ' :charmander::sunny:', bot);
 
@@ -331,7 +334,8 @@ controller.on('direct_mention',function(bot, message) {
     if (user && hasTimeOut) {
 
       // validate and parse args
-      var parsedTime = validateTime(links.slice(2));
+      var input      = messageContent.match(/[a-zA-Z]+|[0-9]+/g).slice(3);
+          parsedTime = validateTime(input);
 
       // invalid args
       if (!(typeof parsedTime === 'object')) {
@@ -723,6 +727,16 @@ function validateTime(input) {
 
   // success
   return {day: d, hour: h, minute: m, second: s};
+}
+
+/* string matches keyword for week */
+function isYear(s) {
+  return s === 'years' || s === 'year' || s === 'yr' || s === 'yrs' || s === 'y';
+}
+
+/* string matches keyword for week */
+function isMonth(s) {
+  return s === 'months' || s === 'month' || s === 'mon' || s === 'mons';
 }
 
 /* string matches keyword for week */
