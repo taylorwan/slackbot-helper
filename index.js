@@ -43,7 +43,7 @@ controller.on('rtm_open', function() {
 function resetController(bot) {
   // get moment object for 9am tomorrow
   var now        = moment(),
-      timeToFire = moment().add(1, 'days').hour(9).minute(0).second(0);
+      timeToFire = moment().add(1, 'days').hour(13).minute(0).second(0);
 
   // perform appropriate reset for today
   if (now.weekday() === 1)
