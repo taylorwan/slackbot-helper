@@ -292,17 +292,12 @@ controller.on('direct_mention',function(bot, message) {
 
   else if (command && channelUserNames && prev && command === 'no') {
 
-    // remove previous user from active duty
-    removeUser(prev.selectedUser.id, channelUserNamesCurrent);
-    channelUserNames = channelUserNamesCurrent.slice();
-
     // remove self
     removeUser(prev.requestUserId, channelUserNames);
 
     // decrease previous user prCount and relieve them of reviewing duty
     prev.selectedUser.prCount--;
-    bot.reply(message, 'I messed up. Sorry, ' + getUsername(prev.selectedUser)
-      + '! :see_no_evil: I\'ve temporarily relieved you from code review duties.');
+    bot.reply(message, 'I messed up. Sorry, ' + getUsername(prev.selectedUser) + '! :see_no_evil:');
 
     // no other reviewers
     if (!channelUserNames.length) {
