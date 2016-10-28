@@ -322,14 +322,13 @@ controller.on('direct_mention',function(bot, message) {
   else if (command && links.length > 0 && command === 'remove') {
 
     var name       = stripUser(links[0]);
-        user       = find(name, channelUserNamesCurrent),
-        hasTimeOut = links[1] === 'for';
+        user       = find(name, channelUserNamesCurrent);
 
     // add back after a period of time
-    if (user && hasTimeOut) {
+    if (user && links[1] === 'for') {
 
       // validate and parse args
-      var input      = messageContent.match(/[a-zA-Z]+|[0-9]+/g).slice(3);
+      var input      = messageArray.slice(3).join(' ').match(/[a-zA-Z]+|[0-9]+/g);
           parsedTime = validateTime(input);
 
       // invalid args
@@ -408,12 +407,45 @@ controller.on('direct_mention',function(bot, message) {
 
       // set add back timeout
       setTimeout(function() {
-        if (!find(user, channelUserNamesCurrent)) {
+        if (!find(user.id, channelUserNamesCurrent)) {
           addUser(user, channelUserNamesCurrent);
           say('It\'s been ' + timeInEnglish + '! ' + getUsername(user)
             + " is now back in the mix :clapping:", bot);
         }
       }, interval);
+      return;
+    }
+
+    else if (user && links[1] === 'til' || links[1] === 'until') {
+      var input       = messageArray.slice(3).join(' ').match(/[a-zA-Z]+|[0-9]+/g),
+          inputString = input.join(' ');
+          time        = moment().hour(13).minute(0).second(0); // default morning
+          // parsedDate  = parseDate(input);
+      console.log(input);
+
+      // get date
+      if (contains(inputString, 'tomorrow')) {
+        time = time.add(1, 'day');
+      }
+
+      // get time
+      if (contains(inputString, 'afternoon')) {
+        time = time.hour(17); // 1pm
+      }
+
+      // remove
+      removeUser(user.id, channelUserNamesCurrent);
+      bot.reply(message, 'I\'ve removed ' + getUsername(user)
+        + ' from active duty until ' + inputString
+        + '! I\'ll let the team know when they return.');
+
+      // set add back timeout
+      setTimeout(function() {
+        if (!find(user.id, channelUserNamesCurrent)) {
+          addUser(user, channelUserNamesCurrent);
+          say(getUsername(user) + " is now back in the mix :clapping:", bot);
+        }
+      }, time - moment());
       return;
     }
 
@@ -695,10 +727,9 @@ function validateTime(input) {
   for (var i = 0; i < input.length; i+=2) {
     var val = input[i].match(/\d+/);
 
-    // var is not a number
-    if (!val) {
+    // val is not a number
+    if (!val)
       return invalidTimeArgsError();
-    }
 
     // convert val from string to int
     val = parseInt(val);
@@ -723,6 +754,44 @@ function validateTime(input) {
   // success
   return {day: d, hour: h, minute: m, second: s};
 }
+
+/* validates a date and returns an object with parsed values */
+// function validateDate(input) {
+//   var d = 0,
+//       h = 0,
+//       m = 0,
+//       s = 0;
+
+//   for (var i = 0; i < input.length; i+=2) {
+//     var val = input[i].match(/\d+/);
+
+//     // val is not a number
+//     if (!val)
+//       return invalidDateArgsError();
+
+//     // convert val from string to int
+//     val = parseInt(val);
+
+//     // if param is valid, set 
+//     if (isWeek(input[i+1]))
+//       d += 7*val;
+//     else if (isDay(input[i+1]))
+//       d += val;
+//     else if (isHour(input[i+1]))
+//       h += val;
+//     else if (isMinute(input[i+1]))
+//       m += val;
+//     else if (isSecond(input[i+1]))
+//       s += val;
+//     else if (isYear(input[i+1]) || isMonth(input[i+1]))
+//       return outOfBoundsTimeArgsError();
+//     else
+//       return invalidTimeArgsError();
+//   }
+
+//   // success
+//   return {day: d, hour: h, minute: m, second: s};
+// }
 
 /* string matches keyword for week */
 function isYear(s) {
@@ -759,12 +828,34 @@ function isSecond(s) {
   return s === 'seconds' || s === 'second' || s === 'secs' || s === 'sec' || s === 's';
 }
 
-/* determine interval */
-function getInterval(t) {
+/* determine relative interval */
+function getRelativeInterval(t) {
   var now = moment(),
       interval = moment().add(t.day, 'day').add(t.hour, 'hour').add(t.minute, 'minute').add(t.second, 'second');
   return interval - now;
 }
+
+/* determine absolute interval */
+// function getDateInterval(t) {
+//   var now      = moment(),
+//       year     = t.year   || moment().year(),
+//       month    = t.month  || moment().month(),
+//       day      = t.day    || moment().day(),
+//       hour     = t.hour   || moment().hour(),
+//       minute   = t.minute || moment().minute(),
+//       second   = t.second || moment().second(),
+//       interval = moment().year(t.year).month(t.month).day(t.day).hour(t.hour).minute(t.minute).second(t.second);
+
+//   console.log(year);
+//   console.log(month);
+//   console.log(day);
+//   console.log(hour);
+//   console.log(minute);
+//   console.log(second);
+//   console.log(interval);
+
+//   return interval - now;
+// }
 
 
 /**
@@ -811,7 +902,8 @@ function helpMessage() {
          "\n*Manage Users*\n" +
          "_Add an user_\t\t\t\t\t\t\t   `@" + botName + " add <username>`\n" +
          "_Remove an user_\t\t\t\t\t\t `@" + botName + " remove <username>`\n" +
-         "_Remove an user for an interval_  `... for [<#> week/day/hour/minute(s)]*`\n" +
+         "_\tfor a timed interval_\t\t\t\t `... for [<#> week/day/hour/minute(s)]*`\n" +
+         "_\tuntil_\t\t\t\t\t\t\t\t\t\t`... until [tomorrow] [mm/dd] (morning/afternoon)(optional)`\n" +
          "\n*PR Counts*\n" +
          "_Increase an user's PR count_\t   `@" + botName + " <username>++`\n" +
          "_Decrease an user's PR count_\t `@" + botName + " <username>--`\n" +
@@ -875,6 +967,12 @@ function noReviewersError() {
 function invalidTimeArgsError() {
   return 'Hmm, I didn\'t get that. Please make sure the time is in the format ' +
          '[# days] [# hours] [# minutes]';
+}
+
+function invalidDateArgsError() {
+  return 'Hmm, I didn\'t get that. I can understand dates in the following formats:\n' +
+         '- tomorrow/day of week (Monday/Tuesday/etc.) _[morning/afternoon] (optional)_' +
+         '- dd/mm or dd/mm/yyyy _[morning/afternoon] (optional)_';
 }
 
 function outOfBoundsTimeArgsError() {
