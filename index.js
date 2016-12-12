@@ -521,6 +521,9 @@ controller.on('direct_mention',function(bot, message) {
     bot.reply(message, 'I didn\'t do anything yet!');
     bot.reply(message, 'Try `@' + botName + ' review <link>`');
   }
+  else if (contains(messageContent, ['thanks', 'thank', 'thank you', 'yay', 'woo'])) {
+    bot.reply(message, ':smile: :tada:');
+  }
   else if (contains(messageContent, ['stop', 'devolve', 'shut up', 'shush', 'ugh',
     'be quiet', 'drop', 'kill', 'no', 'stupid', 'dumb', 'quit', 'bad'])) {
     bot.reply(message, ':white_frowning_face: I\'m trying my best!');
@@ -556,6 +559,8 @@ controller.on('direct_message',function(bot,message) {
     bot.reply(message, printAll());
   } else if (contains(messageContent, ['user', 'active user', 'current user'])) {
     bot.reply(message, printCurrent());
+  } else if (contains(messageContent, ['thanks', 'thank', 'thank you', 'yay', 'woo'])) {
+    bot.reply(message, 'You\'re welcome! :smile:');
   } else {
     bot.reply(message, IDontUnderstand());
   }
