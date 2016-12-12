@@ -338,7 +338,7 @@ controller.on('direct_mention',function(bot, message) {
       }
 
       // parse interval
-      var interval             = getInterval(parsedTime),
+      var interval             = getRelativeInterval(parsedTime),
           dateKeysCount        = Object.keys(parsedTime).length,
           theNextTimeInEnglish = '',
           timeInEnglish        = ''
