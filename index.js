@@ -418,15 +418,18 @@ controller.on('direct_mention',function(bot, message) {
 
     else if (user && links[1] === 'til' || links[1] === 'until') {
       var input       = messageArray.slice(3).join(' ').match(/[a-zA-Z]+|[0-9]+/g),
-          inputString = input.join(' ');
+          inputString = input.join(' '),
           time        = moment().hour(13).minute(0).second(0); // default morning
           // parsedDate  = parseDate(input);
+
       console.log(input);
 
       // get date
       if (contains(inputString, 'tomorrow')) {
         time = time.add(1, 'day');
       }
+      // else if day of week
+      // else if date
 
       // get time
       if (contains(inputString, 'afternoon')) {
@@ -772,7 +775,7 @@ function validateTime(input) {
 //     // convert val from string to int
 //     val = parseInt(val);
 
-//     // if param is valid, set 
+//     // if param is valid, set
 //     if (isWeek(input[i+1]))
 //       d += 7*val;
 //     else if (isDay(input[i+1]))
@@ -971,8 +974,9 @@ function invalidTimeArgsError() {
 
 function invalidDateArgsError() {
   return 'Hmm, I didn\'t get that. I can understand dates in the following formats:\n' +
-         '- tomorrow/day of week (Monday/Tuesday/etc.) _[morning/afternoon] (optional)_' +
-         '- dd/mm or dd/mm/yyyy _[morning/afternoon] (optional)_';
+         '- tomorrow _[morning/afternoon] (optional)_';
+         // '- tomorrow/day of week (Monday/Tuesday/etc.) _[morning/afternoon] (optional)_' +
+         // '- dd/mm or dd/mm/yyyy _[morning/afternoon] (optional)_';
 }
 
 function outOfBoundsTimeArgsError() {
