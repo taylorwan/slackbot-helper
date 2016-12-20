@@ -140,7 +140,7 @@ function boot(bot) {
       say('Hello! My name is ' + botName + ' :charmander::sunny:', bot);
 
       // activate resets
-      resetController(bot);
+      // resetController(bot);
     });
   });
 }
