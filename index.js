@@ -16,7 +16,7 @@ var Botkit = require('botkit'),
     prev, //User that was selected previously
     botName,
     requestRestart,
-    bannedUsers = ['Vincent Eberle'];
+    bannedUsers = ['Vincent Eberle', 'May Zhai'];
 
 var controller = Botkit.slackbot({
   debug: false
