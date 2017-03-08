@@ -12,7 +12,7 @@ Once you've made a pull request and merged:
  2. Ssh into that account `ssh <yourUser>@54.80.204.139`
  3. `sudo su` and enter your password
  4. `cd slackbot-helper`
- 5. Fetch and pull in your changes `git fetch` and `git pull`
+ 5. Pull in your changes `git pull`
  6. Restart the script to apply your changes:
 ```
 // FN: if you reverse search (Ctrl+R) forever stopall on the server, you'll see the token
