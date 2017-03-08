@@ -245,9 +245,9 @@ controller.on('direct_mention',function(bot, message) {
     }
 
     //determine users that have had the fewest review requests so far
-    var low          = 100,
-        high         = 0,
-        userNamesArr = [],
+    var low           = 100,
+        high          = 0,
+        lowestPRusers = [],
         user,
         prCount;
     
@@ -267,22 +267,22 @@ controller.on('direct_mention',function(bot, message) {
     }
     
     // Gets users with the lowest pr count
-    if (low != high) {
-      for (var i in channelUserNames) {
-        user = channelUserNames[i];
-        prCount = user.prCount;
-        
-        if (prCount === low) {
-          // add user to list to choose from
-          userNamesArr.push(user);
-        }
+    for (var i in channelUserNames) {
+      user = channelUserNames[i];
+      prCount = user.prCount;
+      
+      if (prCount === low) {
+        // add user to list to choose from
+        lowestPRusers.push(user);
       }
     }
 
+    // get name of user requesting review
     requestUserNameString = requestUserName ? requestUserName + '\'s' : 'this';
 
-    var randomnumber = Math.floor(Math.random() * (userNamesArr.length));
-    var selectedUser = userNamesArr[randomnumber];
+    // select random user
+    var randomInd    = Math.floor(Math.random() * (lowestPRusers.length));
+        selectedUser = lowestPRusers[randomInd];
 
     selectedUser.prCount++;
     bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: '
@@ -290,11 +290,11 @@ controller.on('direct_mention',function(bot, message) {
       + ' code: ' + concatLinks(links));
 
     // update
-    prev = {};
-    prev.links = links;
-    prev.selectedUser = selectedUser;
+    prev                       = {};
+    prev.links                 = links;
+    prev.selectedUser          = selectedUser;
     prev.requestUserNameString = requestUserNameString;
-    prev.requestUserId = requestUserId;
+    prev.requestUserId         = requestUserId;
   }
 
   /* pick someone else to review code */
@@ -997,4 +997,3 @@ function outOfBoundsTimeArgsError() {
   return 'Do you really want to remove someone for that long? Try entering a time ' +
          'in terms of weeks, days, hours, and minutes';
 }
-
