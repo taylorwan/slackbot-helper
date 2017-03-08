@@ -2,7 +2,8 @@
 An slackbot for choosing someone to review code, created by and for the web apps team at FiscalNote
 
 ### Testing your changes locally
-Run `token=<yourAPItoken> channel=may_test node index.js`
+ 1. Make sure you have forever installed `npm install -g forever` (Node v6.4)
+ 2. Run `token=<yourAPItoken> channel=may_test forever start node index.js`
 This will allow you to test charbot's functionality in the channel may_test (or you can create another test channel, and use that instead)
 
 ### Deploying
