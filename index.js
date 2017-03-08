@@ -245,35 +245,44 @@ controller.on('direct_mention',function(bot, message) {
     }
 
     //determine users that have had the fewest review requests so far
-    var low = 100,
-      high = 0,
-      user,
-      prCount;
+    var low          = 100,
+        high         = 0,
+        userNamesArr = [],
+        user,
+        prCount;
+    
+    // Grab the highest and lowest pr counts  
     for (var i in channelUserNames) {
       user = channelUserNames[i];
       prCount = user.prCount;
+      
+      // Update low count 
       if (prCount < low) {
-          low = prCount;
+        low = prCount;
       }
+      // Update high count
       if (prCount > high) {
-          high = prCount;
+        high = prCount;
       }
     }
+    
+    // Gets users with the lowest pr count
     if (low != high) {
       for (var i in channelUserNames) {
         user = channelUserNames[i];
         prCount = user.prCount;
-        if (prCount > low) {
-          // remove from the list
-          channelUserNames.splice(i, 1);
+        
+        if (prCount === low) {
+          // add user to list to choose from
+          userNamesArr.push(user);
         }
       }
     }
 
     requestUserNameString = requestUserName ? requestUserName + '\'s' : 'this';
 
-    var randomnumber = Math.floor(Math.random() * (channelUserNames.length));
-    var selectedUser = channelUserNames[randomnumber];
+    var randomnumber = Math.floor(Math.random() * (userNamesArr.length));
+    var selectedUser = userNamesArr[randomnumber];
 
     selectedUser.prCount++;
     bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: '
