@@ -330,8 +330,8 @@ controller.on('direct_mention',function(bot, message) {
   /* remove an user from active duty */
   else if (command && links.length > 0 && command === 'remove') {
 
-    var name       = stripUser(links[0]);
-        user       = find(name, channelUserNamesCurrent);
+    var name = stripUser(links[0]);
+        user = find(name, channelUserNamesCurrent);
 
     // add back after a period of time
     if (user && links[1] === 'for') {
@@ -561,12 +561,12 @@ controller.on('direct_message',function(bot,message) {
   }
   // reply to _message_ by using the _bot_ object
   if (contains(messageContent, ['help', 'can you'])) {
-    bot.reply(message, helpMessage());
+    bot.reply(message, helpMessage(false));
   } else if (contains(messageContent, ['hi', 'hello', 'hey'])) {
     bot.reply(message, 'Howdy! To see a list of everything I can do, say `help`.');
-  } else if (contains(messageContent, ['all', 'user'])) {
+  } else if (contains(messageContent, ['ls -a', 'ls all', 'list -a', 'list all', 'all user'])) {
     bot.reply(message, printAll());
-  } else if (contains(messageContent, ['user', 'active user', 'current user'])) {
+  } else if (contains(messageContent, ['ls', 'list', 'user', 'active', 'current'])) {
     bot.reply(message, printCurrent());
   } else if (contains(messageContent, ['thanks', 'thank', 'thank you', 'yay', 'woo'])) {
     bot.reply(message, 'You\'re welcome! :smile:');
@@ -912,27 +912,32 @@ function IDontUnderstand() {
 }
 
 /* return a string with all bot capabilities */
-function helpMessage() {
-  return "Here are all the things I can do:\n" +
-         "\n*Code Review*\n" +
-         "_Pick someone to review code_\t`@" + botName + " review <link>`\n" +
-         "\n*Manage Users*\n" +
-         "_Add an user_\t\t\t\t\t\t\t   `@" + botName + " add <username>`\n" +
-         "_Remove an user_\t\t\t\t\t\t `@" + botName + " remove <username>`\n" +
-         "_\tfor a timed interval_\t\t\t\t `... for [<#> week/day/hour/minute(s)]*`\n" +
-         "_\tuntil_\t\t\t\t\t\t\t\t\t\t`... until [tomorrow] [mm/dd] (morning/afternoon)(optional)`\n" +
-         "\n*PR Counts*\n" +
-         "_Increase an user's PR count_\t   `@" + botName + " <username>++`\n" +
-         "_Decrease an user's PR count_\t `@" + botName + " <username>--`\n" +
-         "_Reset all PR counts_\t\t\t\t\t`@" + botName + " reset pr`\n" +
-         "\n*Print Current Status*\n" +
-         "_View all active reviewers_\t\t\t`@" + botName + " ls`\n" +
-         "_View all users in this channel_\t `@" + botName + " ls -a`\n" +
-         "\n*Reset*\n" +
-         "_Set all users to active_\t\t\t\t`@" + botName + " reset`\n" +
-         "_Restart_\t\t\t\t\t\t\t\t\t   `@" + botName + " restart`\n" +
-         "\nI restore all users every weekday morning at 9am, and " +
-         "reset PR counts to 0 every Monday at 9am";
+function helpMessage(isNotDM=true) {
+  var msg = "Here are all the things I can do:\n" +
+            "\n*Code Review*\n" +
+            "_Pick someone to review code_\t`@" + botName + " review <link>`\n" +
+            "\n*Manage Users*\n" +
+            "_Add an user_\t\t\t\t\t\t\t   `@" + botName + " add <username>`\n" +
+            "_Remove an user_\t\t\t\t\t\t `@" + botName + " remove <username>`\n" +
+            "_\tfor a timed interval_\t\t\t\t `... for [<#> week/day/hour/minute(s)]*`\n" +
+            "_\tuntil_\t\t\t\t\t\t\t\t\t\t`... until [tomorrow] [mm/dd] (morning/afternoon)(optional)`\n" +
+            "\n*PR Counts*\n" +
+            "_Increase an user's PR count_\t   `@" + botName + " <username>++`\n" +
+            "_Decrease an user's PR count_\t `@" + botName + " <username>--`\n" +
+            "_Reset all PR counts_\t\t\t\t\t`@" + botName + " reset pr`\n" +
+            "\n*Print Current Status*\n" +
+            "_View all active reviewers_\t\t\t`@" + botName + " ls`\n" +
+            "_View all users in this channel_\t `@" + botName + " ls -a`\n" +
+            "\n*Reset*\n" +
+            "_Set all users to active_\t\t\t\t`@" + botName + " reset`\n" +
+            "_Restart_\t\t\t\t\t\t\t\t\t   `@" + botName + " restart`\n";
+
+  // if this is not called as a response to a DM, add DM instructions
+  if (isNotDM)
+    msg += "\nYou can also message me directly to see this help message (`help`), " +
+           "all users (`ls -a`), and active users (`ls`)";
+
+  return msg;
 }
 
 /* wrapper for slack's bot.say */
@@ -942,8 +947,8 @@ function say(msg, bot) {
     return;
 
   bot.say({
-    text: msg,
-    channel: channelId
+    text    : msg,
+    channel : channelId
   })
 }
 
