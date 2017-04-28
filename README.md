@@ -8,8 +8,8 @@ This will allow you to test charbot's functionality in the channel may_test (or 
 
 ### Deploying
 Once you've made a pull request and merged:
- 1. If this is the first time you're making changes, ask INF to make an account for you on `54.80.204.139`
- 2. Ssh into that account `ssh <yourUser>@54.80.204.139`
+ 1. If this is the first time you're making changes, ask INF to make an account for you on `38.140.146.178`
+ 2. Ssh into that account `ssh <yourUser>@38.140.146.178`
  3. `sudo su` and enter your password
  4. `cd slackbot-helper`
  5. Pull in your changes `git pull`
