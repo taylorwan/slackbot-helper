@@ -912,7 +912,7 @@ function IDontUnderstand() {
 }
 
 /* return a string with all bot capabilities */
-function helpMessage(isNotDM=true) {
+function helpMessage(isNotDM) {
   var msg = "Here are all the things I can do:\n" +
             "\n*Code Review*\n" +
             "_Pick someone to review code_\t`@" + botName + " review <link>`\n" +
