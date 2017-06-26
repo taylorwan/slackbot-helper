@@ -16,7 +16,7 @@ var Botkit = require('botkit'),
     prev, //User that was selected previously
     botName,
     requestRestart,
-    bannedUsers = ['Vincent Eberle', 'May Zhai'];
+    legacyUsers = ['Vincent Eberle', 'May Zhai'];
 
 var controller = Botkit.slackbot({
   debug: false
@@ -121,7 +121,7 @@ function boot(bot) {
       memberIds.forEach(function(memberId){
         teamUsers.forEach(function(teamUser) {
           if (teamUser.id === memberId) {
-            if (teamUser.profile.real_name.length > 0 && bannedUsers.indexOf(teamUser.profile.real_name) <= -1) {
+            if (teamUser.profile.real_name.length > 0 && legacyUsers.indexOf(teamUser.profile.real_name) <= -1) {
               channelUserNamesAll.push({
                 name: teamUser.profile.real_name,
                 username: teamUser.name.toLowerCase(),
@@ -912,7 +912,7 @@ function IDontUnderstand() {
 }
 
 /* return a string with all bot capabilities */
-function helpMessage(isNotDM) {
+function helpMessage(isNotDM=true) {
   var msg = "Here are all the things I can do:\n" +
             "\n*Code Review*\n" +
             "_Pick someone to review code_\t`@" + botName + " review <link>`\n" +
