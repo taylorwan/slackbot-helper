@@ -167,7 +167,8 @@ controller.on('direct_mention',function(bot, message) {
   var requestUserName;
   var requestUserNameString;
   var messageContent = message.text.toLowerCase();
-  var messageArray = messageContent.split(/ |\n/);
+  var messageLines = messageContent.split('\n');
+  var messageArray = messageLines[0].split(' ');
   var command;
   var links = [];
 
@@ -283,10 +284,24 @@ controller.on('direct_mention',function(bot, message) {
     var randomInd    = Math.floor(Math.random() * (lowestPRusers.length));
         selectedUser = lowestPRusers[randomInd];
 
+    // increment count
     selectedUser.prCount++;
-    bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: '
-      + selectedUser.prCount + ') please review ' + requestUserNameString
-      + ' code: ' + concatLinks(links));
+
+    // form response message
+    let response = 'Hey <@' + selectedUser.username + '> '
+      + '(Review count: ' + selectedUser.prCount + ') '
+      + 'please review ' + requestUserNameString + ' code: ';
+
+    // add same line
+    response += concatLinks(links);
+
+    // add additional lines
+    if (messageLines.length > 1) {
+      messageLines.splice(1).forEach((line) => {
+        response += '\n' + line;
+      });
+    }
+    bot.reply(message, response);
 
     // update
     prev                       = {};
