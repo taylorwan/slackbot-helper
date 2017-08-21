@@ -16,7 +16,7 @@ var Botkit = require('botkit'),
     prev, //User that was selected previously
     botName,
     requestRestart,
-    legacyUsers = ['Vincent Eberle', 'May Zhai'];
+    legacyUsers = ['Vincent Eberle', 'May Zhai', 'Kris Salvador', 'Jack Ward'];
 
 var controller = Botkit.slackbot({
   debug: false
@@ -25,7 +25,6 @@ var controller = Botkit.slackbot({
 var bot = controller.spawn({
   token: process.env.token
 }).startRTM();
-
 
 /**
  * RESET FUNCTIONALITY
@@ -168,7 +167,7 @@ controller.on('direct_mention',function(bot, message) {
   var requestUserName;
   var requestUserNameString;
   var messageContent = message.text.toLowerCase();
-  var messageArray = messageContent.split(' ');
+  var messageArray = messageContent.split(/ |\n/);
   var command;
   var links = [];
 
