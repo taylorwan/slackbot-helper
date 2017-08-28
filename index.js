@@ -298,7 +298,7 @@ controller.on('direct_mention',function(bot, message) {
     // add additional lines
     if (messageLines.length > 1) {
       messageLines.splice(1).forEach((line) => {
-        response += '\n' + line;
+        response += '\n' + stripLink(line);
       });
     }
     bot.reply(message, response);
