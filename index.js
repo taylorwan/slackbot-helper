@@ -16,7 +16,7 @@ var Botkit = require('botkit'),
     prev, //User that was selected previously
     botName,
     requestRestart,
-    legacyUsers = ['Vincent Eberle', 'May Zhai', 'Kris Salvador', 'Jack Ward'];
+    legacyUsers = ['Vincent Eberle', 'May Zhai', 'Kris Salvador', 'Jack Ward', 'charmeleon'];
 
 var controller = Botkit.slackbot({
   debug: false
