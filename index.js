@@ -288,7 +288,7 @@ controller.on('direct_mention',function(bot, message) {
     selectedUser.prCount++;
 
     // form response message
-    let response = 'Hey <@' + selectedUser.username + '> '
+    let response = 'Hey <@' + selectedUser.id.toUpperCase() + '> '
       + '(Review count: ' + selectedUser.prCount + ') '
       + 'please review ' + requestUserNameString + ' code: ';
 
@@ -333,7 +333,7 @@ controller.on('direct_mention',function(bot, message) {
     var randomnumber = Math.floor(Math.random() * (channelUserNames.length));
     var selectedUser = channelUserNames[randomnumber];
     selectedUser.prCount++;
-    bot.reply(message, 'Hey <@' + selectedUser.username + '> (Review count: '
+    bot.reply(message, 'Hey <@' + selectedUser.id.toUpperCase() + '> (Review count: '
       + selectedUser.prCount + ') please review ' + prev.requestUserNameString
       + ' code: ' + concatLinks(prev.links));
 
